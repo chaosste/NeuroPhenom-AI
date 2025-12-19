@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   InterviewSession, 
   Settings, 
@@ -26,6 +26,7 @@ import {
 import LiveInterviewSession from './components/LiveInterviewSession';
 import AnalysisView from './components/AnalysisView';
 import SettingsMenu from './components/SettingsMenu';
+import StandaloneRecorder from './components/StandaloneRecorder';
 import Button from './components/Button';
 import { analyzeInterview } from './services/geminiService';
 import { Artifact } from './constants';
@@ -33,10 +34,12 @@ import { Artifact } from './constants';
 const App: React.FC = () => {
   const [sessions, setSessions] = useState<InterviewSession[]>([]);
   const [activeSession, setActiveSession] = useState<InterviewSession | null>(null);
-  const [view, setView] = useState<'home' | 'ai-interview' | 'analysis'>('home');
+  const [view, setView] = useState<'home' | 'ai-interview' | 'analysis' | 'recorder'>('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'AI_INTERVIEW' | 'RECORDED' | 'UPLOADED'>('ALL');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [settings, setSettings] = useState<Settings>({
     language: LanguagePreference.UK,
     voiceGender: VoiceGender.FEMALE,
@@ -59,31 +62,58 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('neuro_phenom_settings', JSON.stringify(settings)); }, [settings]);
 
   const handleCreateAISession = () => setView('ai-interview');
+  const handleStartRecording = () => setView('recorder');
+  const handleTriggerUpload = () => fileInputRef.current?.click();
 
-  const handleAIInterviewComplete = async (transcript: SpeakerSegment[]) => {
-    if (transcript.length === 0) { setView('home'); return; }
+  const processTranscriptionResult = async (transcriptText: string, type: 'AI_INTERVIEW' | 'RECORDED' | 'UPLOADED', audioUrl?: string) => {
     setIsAnalyzing(true);
     try {
-      const transcriptText = transcript.map(t => `${t.speaker}: ${t.text}`).join('\n');
       const analysis = await analyzeInterview(transcriptText, settings.language);
-      const duration = transcript.length > 0 ? (transcript[transcript.length - 1].startTime || transcript.length * 5) : 0;
       const newSession: InterviewSession = {
         id: crypto.randomUUID(),
         date: new Date().toISOString(),
-        duration,
-        type: 'AI_INTERVIEW',
+        duration: 0, // Simplified for now
+        type,
         analysis,
         codes: [],
-        annotations: []
+        annotations: [],
+        audioUrl
       };
       setSessions(prev => [newSession, ...prev]);
       setActiveSession(newSession);
       setView('analysis');
     } catch (error) {
-      alert("AI analysis failed.");
+      alert("AI analysis failed. Please check your connection.");
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const text = e.target?.result as string;
+      if (text) {
+        await processTranscriptionResult(text, 'UPLOADED');
+      }
+    };
+    reader.readAsText(file);
+    // Reset input
+    event.target.value = '';
+  };
+
+  const handleAIInterviewComplete = async (transcript: SpeakerSegment[]) => {
+    if (transcript.length === 0) { setView('home'); return; }
+    const transcriptText = transcript.map(t => `${t.speaker}: ${t.text}`).join('\n');
+    await processTranscriptionResult(transcriptText, 'AI_INTERVIEW');
+  };
+
+  const handleRecordComplete = async (transcriptText: string, audioBlob: Blob) => {
+    const audioUrl = URL.createObjectURL(audioBlob);
+    await processTranscriptionResult(transcriptText, 'RECORDED', audioUrl);
   };
 
   const deleteSession = (id: string, e: React.MouseEvent) => {
@@ -102,6 +132,14 @@ const App: React.FC = () => {
 
   const renderHome = () => (
     <div className="flex flex-col gap-0 animate-in fade-in duration-300 max-w-7xl mx-auto w-full p-8 md:p-12">
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileUpload} 
+        accept=".txt" 
+        className="hidden" 
+      />
+      
       {/* Header Info */}
       <div className="mb-12 border-b border-black pb-12">
         <h1 className="text-4xl md:text-6xl font-black tracking-tighter mb-4 uppercase flex items-center gap-4">
@@ -118,7 +156,6 @@ const App: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
         {/* Left Actions Column */}
         <div className="lg:col-span-4 flex flex-col gap-6">
-          {/* Main Conversational AI Card */}
           <div className="bg-black text-white p-8 flex flex-col gap-8 min-h-[300px]">
             <div className="w-12 h-12 border border-white/20 flex items-center justify-center">
               <MessageSquare size={24} className="text-white" />
@@ -137,9 +174,11 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* Secondary Action Cards Grid */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="border border-black p-6 flex flex-col gap-6 group hover:bg-neutral-50 transition-colors cursor-not-allowed opacity-50">
+            <div 
+              onClick={handleStartRecording}
+              className="border border-black p-6 flex flex-col gap-6 group hover:bg-neutral-50 transition-colors cursor-pointer"
+            >
               <div className="w-10 h-10 border border-black/10 flex items-center justify-center">
                 <Mic size={18} className="text-black" />
               </div>
@@ -151,7 +190,10 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            <div className="border border-black p-6 flex flex-col gap-6 group hover:bg-neutral-50 transition-colors cursor-not-allowed opacity-50">
+            <div 
+              onClick={handleTriggerUpload}
+              className="border border-black p-6 flex flex-col gap-6 group hover:bg-neutral-50 transition-colors cursor-pointer"
+            >
               <div className="w-10 h-10 border border-black/10 flex items-center justify-center">
                 <FileText size={18} className="text-black" />
               </div>
@@ -274,6 +316,12 @@ const App: React.FC = () => {
 
         <div className="flex-1">
           {view === 'home' && renderHome()}
+          {view === 'recorder' && (
+            <StandaloneRecorder 
+              onComplete={handleRecordComplete} 
+              onCancel={() => setView('home')} 
+            />
+          )}
           {view === 'ai-interview' && (
             <div className="p-0 h-[calc(100vh-80px)]">
               <LiveInterviewSession 

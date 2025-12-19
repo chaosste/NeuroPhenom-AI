@@ -2,10 +2,11 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult, LanguagePreference } from "../types";
 
-const API_KEY = process.env.API_KEY;
+// Removed local API_KEY constant to use process.env.API_KEY directly as per guidelines
 
 export const getWelcomeMessage = async (language: LanguagePreference): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  // Always use new GoogleGenAI({ apiKey: process.env.API_KEY }) directly
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `Generate a warm, context-aware introduction for a neurophenomenology interview. 
   Briefly explain the concept (exploring the "how" of experience) and suggest a starting point. 
   Use ${language === LanguagePreference.UK ? 'UK' : 'US'} spelling and tone.`;
@@ -23,7 +24,8 @@ export const getWelcomeMessage = async (language: LanguagePreference): Promise<s
 };
 
 export const analyzeInterview = async (transcriptText: string, language: LanguagePreference): Promise<AnalysisResult> => {
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  // Always use new GoogleGenAI({ apiKey: process.env.API_KEY }) directly
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const responseSchema = {
     type: Type.OBJECT,
@@ -89,7 +91,11 @@ export const analyzeInterview = async (transcriptText: string, language: Languag
       }
     });
 
-    return JSON.parse(response.text.trim()) as AnalysisResult;
+    const text = response.text;
+    if (!text) {
+      throw new Error("Empty response from AI analysis");
+    }
+    return JSON.parse(text.trim()) as AnalysisResult;
   } catch (error) {
     console.error("Analysis Error:", error);
     throw error;
