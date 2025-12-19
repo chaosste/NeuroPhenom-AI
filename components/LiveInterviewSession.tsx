@@ -4,7 +4,7 @@ import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { Settings, LanguagePreference, VoiceGender, SpeakerSegment } from '../types';
 import { NEURO_PHENOM_SYSTEM_INSTRUCTION } from '../constants';
 import Button from './Button';
-import { Mic, PhoneOff, Terminal, Bot, AudioLines, Activity } from 'lucide-react';
+import { Mic, PhoneOff, Terminal, Bot, AudioLines, Activity, Globe } from 'lucide-react';
 
 interface LiveInterviewSessionProps {
   settings: Settings;
@@ -35,7 +35,7 @@ const LiveInterviewSession: React.FC<LiveInterviewSessionProps> = ({ settings, o
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [liveTranscript, currentTurnRef.current.text]);
+  }, [liveTranscript]);
 
   const encode = (bytes: Uint8Array) => {
     let binary = '';
@@ -58,7 +58,9 @@ const LiveInterviewSession: React.FC<LiveInterviewSessionProps> = ({ settings, o
     const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
     for (let channel = 0; channel < numChannels; channel++) {
       const channelData = buffer.getChannelData(channel);
-      for (let i = 0; i < frameCount; i++) { channelData[i] = dataInt16[i * numChannels + channel] / 32768.0; }
+      for (let i = 0; i < frameCount; i++) {
+        channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+      }
     }
     return buffer;
   };
@@ -66,15 +68,17 @@ const LiveInterviewSession: React.FC<LiveInterviewSessionProps> = ({ settings, o
   const createBlob = (data: Float32Array): { data: string; mimeType: string } => {
     const l = data.length;
     const int16 = new Int16Array(l);
-    for (let i = 0; i < l; i++) { int16[i] = data[i] * 32768; }
+    for (let i = 0; i < l; i++) {
+      int16[i] = Math.max(-1, Math.min(1, data[i])) * 0x7FFF;
+    }
     return { data: encode(new Uint8Array(int16.buffer)), mimeType: 'audio/pcm;rate=16000' };
   };
 
   const startSession = async () => {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const inputAudioContext = new AudioContext({ sampleRate: 16000 });
-      const outputAudioContext = new AudioContext({ sampleRate: 24000 });
+      const inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+      const outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       audioContextRef.current = outputAudioContext;
       sessionStartTimeRef.current = Date.now();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -112,22 +116,16 @@ const LiveInterviewSession: React.FC<LiveInterviewSessionProps> = ({ settings, o
             }
 
             if (message.serverContent?.outputTranscription) {
-              const text = message.serverContent.outputTranscription.text;
-              updateIncrementalTranscript('AI', text);
+              updateIncrementalTranscript('AI', message.serverContent.outputTranscription.text);
             } else if (message.serverContent?.inputTranscription) {
-              const text = message.serverContent.inputTranscription.text;
-              updateIncrementalTranscript('Interviewee', text);
+              updateIncrementalTranscript('Interviewee', message.serverContent.inputTranscription.text);
             }
 
             if (message.serverContent?.turnComplete) {
               finalizeTurn();
             }
-            
-            if (message.serverContent?.interrupted) {
-              // Handle interruption visually if needed
-            }
           },
-          onerror: (e) => setError("Link Error"),
+          onerror: (e) => setError("Link Interrupt"),
           onclose: () => setIsActive(false),
         },
         config: {
@@ -139,20 +137,17 @@ const LiveInterviewSession: React.FC<LiveInterviewSessionProps> = ({ settings, o
         },
       });
       sessionRef.current = await sessionPromise;
-    } catch (err) { setError("Microphone access denied."); }
+    } catch (err) { setError("Microphone Hardware Error"); }
   };
 
   const updateIncrementalTranscript = (speaker: 'AI' | 'Interviewee', text: string) => {
     if (currentTurnRef.current.speaker !== speaker) {
-      if (currentTurnRef.current.speaker !== null) {
-        finalizeTurn();
-      }
+      if (currentTurnRef.current.speaker !== null) finalizeTurn();
       currentTurnRef.current = { speaker, text: text, id: crypto.randomUUID() };
     } else {
       currentTurnRef.current.text += text;
     }
     
-    // Trigger re-render by updating state
     setLiveTranscript(prev => {
       const others = prev.filter(m => m.id !== currentTurnRef.current.id);
       return [...others, { ...currentTurnRef.current } as any];
@@ -161,14 +156,12 @@ const LiveInterviewSession: React.FC<LiveInterviewSessionProps> = ({ settings, o
 
   const finalizeTurn = () => {
     if (!currentTurnRef.current.text || !currentTurnRef.current.speaker) return;
-    
     const ts = (Date.now() - sessionStartTimeRef.current) / 1000;
     transcriptHistoryRef.current.push({ 
       speaker: currentTurnRef.current.speaker === 'AI' ? 'AI' : 'Interviewee', 
       text: currentTurnRef.current.text, 
       startTime: ts 
     });
-    
     currentTurnRef.current = { speaker: null, text: '', id: null };
   };
 
@@ -184,18 +177,18 @@ const LiveInterviewSession: React.FC<LiveInterviewSessionProps> = ({ settings, o
         <div className="flex items-center gap-6">
           <h2 className="text-[10px] font-black uppercase tracking-[0.4em] flex items-center gap-3">
             <div className={`w-2.5 h-2.5 rounded-full ${isActive ? 'bg-black animate-pulse shadow-[0_0_8px_rgba(0,0,0,0.3)]' : 'bg-neutral-200'}`} />
-            Live Link Mode
+            Synchronous Interface
           </h2>
           {isActive && (
-            <div className="flex items-center gap-2 px-3 py-1 bg-neutral-100 rounded-full">
-              <Activity size={12} className="text-black/50" />
-              <span className="text-[9px] font-mono font-bold tracking-tighter">BITRATE_STABLE</span>
+            <div className="flex items-center gap-2 px-3 py-1 bg-neutral-100 border border-black/5 rounded-full">
+              <Globe size={10} className="text-black opacity-50" />
+              <span className="text-[9px] font-mono font-bold tracking-tighter">LATENCY_STABLE</span>
             </div>
           )}
         </div>
         <div className="flex gap-4">
           <Button variant="outline" size="sm" onClick={onCancel}>Terminate</Button>
-          {isActive && <Button size="sm" onClick={endSession}>Conclude & Map</Button>}
+          {isActive && <Button size="sm" onClick={endSession}>Finalize & Map</Button>}
         </div>
       </div>
 
@@ -208,20 +201,17 @@ const LiveInterviewSession: React.FC<LiveInterviewSessionProps> = ({ settings, o
                 <div className="w-12 h-12 border border-black/5 rounded-full animate-ping" />
               </div>
             </div>
-            <h3 className="text-4xl font-black uppercase tracking-tighter mb-6 leading-tight">Initialize Subjective<br/>Extraction Protocol</h3>
+            <h3 className="text-4xl font-black uppercase tracking-tighter mb-6 leading-tight">Neural Link Initialize</h3>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400 max-w-sm mb-12 leading-loose">
-              Establish secure neural-linguistic interface via Gemini 2.5 Native Audio. Real-time synchronicity enabled.
+              Establish interactive neurophenomenology session. Real-time synchronicity and structural analysis enabled.
             </p>
-            <Button size="lg" onClick={startSession} className="px-12">Initialize Link</Button>
+            <Button size="lg" onClick={startSession} className="px-12">Connect Link</Button>
           </div>
         )}
 
         {isActive && (
           <div className="flex-1 flex flex-col p-8 md:p-16 lg:p-24 overflow-hidden">
-            <div 
-              ref={scrollRef}
-              className="flex-1 overflow-y-auto space-y-16 pr-4 scroll-smooth no-scrollbar"
-            >
+            <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-16 pr-4 scroll-smooth no-scrollbar">
               {liveTranscript.map((msg, idx) => (
                 <div 
                   key={msg.id} 
@@ -232,29 +222,21 @@ const LiveInterviewSession: React.FC<LiveInterviewSessionProps> = ({ settings, o
                     <div className="w-8 h-px bg-black" />
                   </div>
                   <div className={`p-8 border-2 ${msg.speaker === 'AI' ? 'bg-white border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,0.05)]' : 'bg-black text-white border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)]'}`}>
-                    <p className="text-xl md:text-2xl font-bold leading-tight uppercase tracking-tight font-mono">
+                    <p className="text-2xl font-bold leading-tight uppercase tracking-tight font-mono">
                       {msg.text}
-                      {idx === liveTranscript.length - 1 && <span className="inline-block w-2 h-5 bg-current ml-1 animate-pulse" />}
+                      {idx === liveTranscript.length - 1 && <span className="inline-block w-2 h-6 bg-current ml-1 animate-pulse" />}
                     </p>
                   </div>
                 </div>
               ))}
-              {liveTranscript.length === 0 && (
-                <div className="h-full flex items-center justify-center opacity-20">
-                  <p className="text-[10px] font-black uppercase tracking-[1em]">Listening...</p>
-                </div>
-              )}
             </div>
             
-            {/* Visual feedback of audio processing */}
-            <div className="mt-16 flex items-end justify-center gap-1 h-12 px-12">
+            <div className="mt-16 flex items-end justify-center gap-1.5 h-12 px-12">
               {[...Array(40)].map((_, i) => (
-                <div 
-                  key={i} 
-                  className="w-1 bg-black transition-all duration-75" 
+                <div key={i} className="w-1.5 bg-black transition-all duration-75" 
                   style={{ 
-                    height: `${isActive ? Math.random() * 100 : 5}%`,
-                    opacity: isActive ? 0.1 + (Math.random() * 0.4) : 0.05 
+                    height: `${isActive ? 10 + Math.random() * 90 : 5}%`,
+                    opacity: isActive ? 0.05 + (Math.random() * 0.3) : 0.05 
                   }} 
                 />
               ))}
@@ -266,7 +248,7 @@ const LiveInterviewSession: React.FC<LiveInterviewSessionProps> = ({ settings, o
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center p-16 border-2 border-black bg-white shadow-[12px_12px_0px_0px_rgba(0,0,0,1)]">
               <p className="text-[12px] font-black uppercase tracking-widest mb-8 text-red-600">LINK_FAILURE: {error}</p>
-              <Button size="md" onClick={() => window.location.reload()}>Re-Establish Link</Button>
+              <Button size="md" onClick={() => window.location.reload()}>Reset Protocol</Button>
             </div>
           </div>
         )}

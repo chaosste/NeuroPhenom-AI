@@ -2,29 +2,25 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult, LanguagePreference } from "../types";
 
-// Removed local API_KEY constant to use process.env.API_KEY directly as per guidelines
-
 export const getWelcomeMessage = async (language: LanguagePreference): Promise<string> => {
-  // Always use new GoogleGenAI({ apiKey: process.env.API_KEY }) directly
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const prompt = `Generate a warm, context-aware introduction for a neurophenomenology interview. 
-  Briefly explain the concept (exploring the "how" of experience) and suggest a starting point. 
-  Use ${language === LanguagePreference.UK ? 'UK' : 'US'} spelling and tone.`;
+  const prompt = `Generate a concise, professional clinical introduction for a neurophenomenology interview. 
+  Focus on the 'how' of micro-experience. 
+  Use ${language === LanguagePreference.UK ? 'UK' : 'US'} spelling and a sophisticated tone.`;
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
     });
-    return response.text || "Welcome to your neurophenomenology session. Shall we begin by identifying a specific experience to explore?";
+    return response.text || "Interface established. Shall we begin mapping your micro-experience?";
   } catch (error) {
-    console.error("Error fetching welcome message:", error);
-    return "Welcome. I am ready to guide you through a reflective neurophenomenology session.";
+    console.error("Welcome Error:", error);
+    return "Clinical observer ready. Please describe a specific, singular experience to begin.";
   }
 };
 
 export const analyzeInterview = async (transcriptText: string, language: LanguagePreference): Promise<AnalysisResult> => {
-  // Always use new GoogleGenAI({ apiKey: process.env.API_KEY }) directly
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const responseSchema = {
@@ -62,7 +58,7 @@ export const analyzeInterview = async (transcriptText: string, language: Languag
         items: {
           type: Type.OBJECT,
           properties: {
-            speaker: { type: Type.STRING },
+            speaker: { type: Type.STRING, enum: ["Interviewer", "Interviewee", "AI"] },
             text: { type: Type.STRING },
             startTime: { type: Type.NUMBER }
           },
@@ -73,12 +69,13 @@ export const analyzeInterview = async (transcriptText: string, language: Languag
     required: ["summary", "takeaways", "modalities", "phasesCount", "diachronicStructure", "synchronicStructure", "transcript"]
   };
 
-  const prompt = `Analyze this neurophenomenology interview transcript. 
-  Identify the diachronic (temporal unfolding) and synchronic (structural qualities) dimensions. 
-  Diarize the transcript into Interviewer vs Interviewee if it's raw text.
-  Use ${language === LanguagePreference.UK ? 'UK' : 'US'} spelling.
+  const prompt = `MANDATORY INSTRUCTION:
+  Analyze the provided raw data as a neurophenomenology interview.
+  1. DIARIZATION: Extract turns between the 'Interviewer' (AI) and 'Interviewee' (User). 
+  2. PHENOMENOLOGY: Map the diachronic temporal unfolding and synchronic structural features.
+  3. REGISTRY: Identify the specific sensory modalities (visual, auditory, tactile, etc.).
   
-  TRANSCRIPT:
+  DATA FOR ANALYSIS:
   ${transcriptText}`;
 
   try {
@@ -87,17 +84,16 @@ export const analyzeInterview = async (transcriptText: string, language: Languag
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
-        responseSchema
+        responseSchema,
+        thinkingConfig: { thinkingBudget: 8000 }
       }
     });
 
-    const text = response.text;
-    if (!text) {
-      throw new Error("Empty response from AI analysis");
-    }
-    return JSON.parse(text.trim()) as AnalysisResult;
+    const resultText = response.text;
+    if (!resultText) throw new Error("MAPPING_PROTOCOL_FAILURE_EMPTY");
+    return JSON.parse(resultText.trim()) as AnalysisResult;
   } catch (error) {
-    console.error("Analysis Error:", error);
+    console.error("Critical Analysis Error:", error);
     throw error;
   }
 };

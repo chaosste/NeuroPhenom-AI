@@ -17,15 +17,13 @@ export const Artifact = ({ className = "" }: { className?: string }) => (
   <svg 
     viewBox="0 0 100 100" 
     className={className} 
-    fill="none" 
+    fill="currentColor" 
     xmlns="http://www.w3.org/2000/svg"
     aria-hidden="true"
   >
-    <circle cx="50" cy="50" r="48" stroke="currentColor" strokeWidth="0.5" />
-    <circle cx="50" cy="50" r="38" stroke="currentColor" strokeWidth="0.5" strokeDasharray="1 3" />
-    <circle cx="50" cy="50" r="28" stroke="currentColor" strokeWidth="1" />
-    <path d="M50 10V90M10 50H90" stroke="currentColor" strokeWidth="0.2" opacity="0.3" />
-    <rect x="47" y="47" width="6" height="6" fill="currentColor" />
+    <path d="M50,5C25.1,5,5,25.1,5,50s20.1,45,45,45s45-20.1,45-45c0-3.1-0.3-6.2-1-9.1l-8.5,4.7c0.4,1.4,0.6,2.9,0.6,4.4
+    c0,19.9-16.2,36.1-36.1,36.1S13.9,69.9,13.9,50S30.1,13.9,50,13.9c2,0,3.9,0.2,5.8,0.5l3.1-8.3C55.9,5.4,53,5,50,5z M75.4,6.4
+    l-12.7,4.4l8.3,16.2l12.8-15.5L75.4,6.4z M77.5,12.5c0.8,0,1.5,0.7,1.5,1.5s-0.7,1.5-1.5,1.5s-1.5-0.7-1.5-1.5S76.7,12.5,77.5,12.5z" />
   </svg>
 );
 
@@ -40,7 +38,7 @@ export const ArchiveVisual = ({ className = "" }: { className?: string }) => (
       </div>
     ))}
     <div className="mt-4 p-4 border border-black/20 text-center">
-      <p className="text-[10px] font-black tracking-[0.5em]">SYSTEM ARCHIVE v1.2.4</p>
+      <p className="text-[10px] font-black tracking-[0.5em]">SYSTEM ARCHIVE v1.2.5</p>
     </div>
   </div>
 );
