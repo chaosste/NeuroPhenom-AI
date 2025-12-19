@@ -1,0 +1,7 @@
+{
+  "name": "NeuroPhenom AI",
+  "description": "A sophisticated neurophenomenology platform for conducting, recording, and analyzing micro-phenomenological interviews using Gemini AI.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
