@@ -4,15 +4,18 @@ import { AnalysisResult, Code, Annotation, InterviewSession } from '../types';
 import { 
   BarChart3, 
   Code as CodeIcon, 
-  MessageSquare, 
   Play, 
   Pause, 
   Download, 
-  Trash2, 
-  ChevronRight, 
   X,
   History,
-  Info
+  Info,
+  ChevronRight,
+  Quote,
+  Clock,
+  FileText,
+  CheckCircle2,
+  Plus
 } from 'lucide-react';
 import Button from './Button';
 import { COLORS } from '../constants';
@@ -28,14 +31,32 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ session, onUpdate }) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [selection, setSelection] = useState<{ segmentIndex: number; start: number; end: number; rect: DOMRect | null } | null>(null);
   const [newCodeName, setNewCodeName] = useState('');
+  const [inlineNewCodeName, setInlineNewCodeName] = useState('');
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      const audio = audioRef.current;
+      const updateTime = () => setCurrentTime(audio.currentTime);
+      audio.addEventListener('timeupdate', updateTime);
+      return () => audio.removeEventListener('timeupdate', updateTime);
+    }
+  }, []);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const togglePlayback = () => {
+    if (audioRef.current) {
+      if (isPlaying) audioRef.current.pause();
+      else audioRef.current.play();
+      setIsPlaying(!isPlaying);
+    }
   };
 
   const handleTextSelection = (segmentIndex: number) => {
@@ -45,11 +66,14 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ session, onUpdate }) => {
       return;
     }
 
+    const segment = session.analysis?.transcript[segmentIndex];
+    if (segment && segment.startTime !== undefined && audioRef.current) {
+      audioRef.current.currentTime = segment.startTime;
+      setCurrentTime(segment.startTime);
+    }
+
     const range = sel.getRangeAt(0);
     const rect = range.getBoundingClientRect();
-    
-    // Simple logic to map character offsets within the specific segment element
-    // For production, this needs robust logic accounting for children and partial text nodes
     const start = Math.min(sel.anchorOffset, sel.focusOffset);
     const end = Math.max(sel.anchorOffset, sel.focusOffset);
     
@@ -58,7 +82,6 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ session, onUpdate }) => {
 
   const applyCode = (codeId: string) => {
     if (!selection) return;
-
     const newAnnotation: Annotation = {
       id: crypto.randomUUID(),
       codeId,
@@ -67,11 +90,7 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ session, onUpdate }) => {
       endOffset: selection.end,
       text: session.analysis?.transcript[selection.segmentIndex].text.substring(selection.start, selection.end) || ''
     };
-
-    onUpdate({
-      ...session,
-      annotations: [...session.annotations, newAnnotation]
-    });
+    onUpdate({ ...session, annotations: [...session.annotations, newAnnotation] });
     setSelection(null);
     window.getSelection()?.removeAllRanges();
   };
@@ -83,11 +102,30 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ session, onUpdate }) => {
       name: newCodeName,
       color: COLORS.codeColors[session.codes.length % COLORS.codeColors.length]
     };
-    onUpdate({
-      ...session,
-      codes: [...session.codes, newCode]
-    });
+    onUpdate({ ...session, codes: [...session.codes, newCode] });
     setNewCodeName('');
+  };
+
+  const addInlineCode = () => {
+    if (!inlineNewCodeName.trim() || !selection) return;
+    const newCode: Code = {
+      id: crypto.randomUUID(),
+      name: inlineNewCodeName,
+      color: COLORS.codeColors[session.codes.length % COLORS.codeColors.length]
+    };
+    const updatedCodes = [...session.codes, newCode];
+    const newAnnotation: Annotation = {
+      id: crypto.randomUUID(),
+      codeId: newCode.id,
+      segmentIndex: selection.segmentIndex,
+      startOffset: selection.start,
+      endOffset: selection.end,
+      text: session.analysis?.transcript[selection.segmentIndex].text.substring(selection.start, selection.end) || ''
+    };
+    onUpdate({ ...session, codes: updatedCodes, annotations: [...session.annotations, newAnnotation] });
+    setSelection(null);
+    setInlineNewCodeName('');
+    window.getSelection()?.removeAllRanges();
   };
 
   const exportJson = () => {
@@ -100,85 +138,137 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ session, onUpdate }) => {
     downloadAnchorNode.remove();
   };
 
+  const exportTranscriptTxt = () => {
+    if (!session.analysis?.transcript) return;
+    const text = session.analysis.transcript.map(segment => {
+      const time = formatTime(segment.startTime || 0);
+      return `[${time}] ${segment.speaker}: ${segment.text}`;
+    }).join('\n\n');
+    
+    const dataStr = "data:text/plain;charset=utf-8," + encodeURIComponent(text);
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `transcript_${session.id}.txt`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  };
+
   return (
-    <div className="flex flex-col h-full bg-white rounded-2xl shadow-xl overflow-hidden">
-      {/* Header with Audio Player */}
-      <div className="bg-[#0047AB] text-white p-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold">Analysis Workspace</h2>
-            <p className="text-blue-100 text-sm">Session from {new Date(session.date).toLocaleString()}</p>
+    <div className="flex flex-col h-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
+      {/* Hidden Audio Element */}
+      <audio ref={audioRef} src={session.audioUrl} />
+
+      {/* Header Area */}
+      <div className="bg-[#0047AB] text-white p-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
+              <History size={24} />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black tracking-tight">Phenomenological Workspace</h2>
+              <p className="text-blue-100 text-sm font-medium opacity-80">
+                {new Date(session.date).toLocaleString()} • {formatTime(session.duration)} total duration
+              </p>
+            </div>
           </div>
-          <div className="bg-white/10 p-4 rounded-xl flex items-center gap-4 border border-white/10">
+          
+          <div className="bg-slate-900/30 p-4 rounded-2xl flex items-center gap-6 border border-white/10 backdrop-blur-xl">
             <button 
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="w-10 h-10 bg-white text-[#0047AB] rounded-full flex items-center justify-center hover:scale-105 transition-transform"
+              onClick={togglePlayback}
+              className="w-12 h-12 bg-white text-[#0047AB] rounded-full flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg"
             >
-              {isPlaying ? <Pause size={20} /> : <Play size={20} className="ml-1" />}
+              {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
             </button>
-            <div className="flex flex-col flex-1 min-w-[120px]">
-              <div className="flex justify-between text-xs mb-1">
+            <div className="flex flex-col flex-1 min-w-[160px]">
+              <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest mb-1 opacity-70">
                 <span>{formatTime(currentTime)}</span>
                 <span>{formatTime(session.duration)}</span>
               </div>
-              <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-white transition-all duration-300" 
-                  style={{ width: `${(currentTime / session.duration) * 100}%` }} 
-                />
-              </div>
+              <input 
+                type="range"
+                min="0"
+                max={session.duration || 100}
+                value={currentTime}
+                onChange={(e) => {
+                  const time = parseFloat(e.target.value);
+                  if (audioRef.current) audioRef.current.currentTime = time;
+                  setCurrentTime(time);
+                }}
+                className="w-full h-1.5 bg-white/20 rounded-full appearance-none cursor-pointer accent-white"
+              />
             </div>
-            <Button variant="outline" size="sm" onClick={exportJson} className="bg-transparent text-white border-white hover:bg-white hover:text-[#0047AB]">
-              <Download size={16} className="mr-2" /> Export
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={exportTranscriptTxt} title="Export Transcript (.txt)" className="bg-white/10 text-white border-white/20 hover:bg-white hover:text-[#0047AB] transition-all">
+                <FileText size={18} />
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportJson} className="bg-white/10 text-white border-white/20 hover:bg-white hover:text-[#0047AB] transition-all">
+                <Download size={18} className="mr-2" /> Export JSON
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200 px-6 bg-slate-50">
-        <button 
-          onClick={() => setActiveTab('coding')}
-          className={`px-6 py-4 font-semibold text-sm transition-all border-b-2 ${activeTab === 'coding' ? 'border-[#0047AB] text-[#0047AB]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-        >
-          <div className="flex items-center gap-2">
-            <CodeIcon size={18} /> Coding Workspace
-          </div>
-        </button>
-        <button 
-          onClick={() => setActiveTab('report')}
-          className={`px-6 py-4 font-semibold text-sm transition-all border-b-2 ${activeTab === 'report' ? 'border-[#0047AB] text-[#0047AB]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-        >
-          <div className="flex items-center gap-2">
-            <BarChart3 size={18} /> AI Analysis Report
-          </div>
-        </button>
+      {/* Tab Navigation */}
+      <div className="flex border-b border-slate-200 px-8 bg-slate-50/50">
+        {[
+          { id: 'coding', label: 'Coding Workspace', icon: CodeIcon },
+          { id: 'report', label: 'AI Synthesis Report', icon: BarChart3 }
+        ].map(tab => (
+          <button 
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`px-8 py-5 font-bold text-sm transition-all border-b-2 flex items-center gap-3 ${activeTab === tab.id ? 'border-[#0047AB] text-[#0047AB]' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+          >
+            <tab.icon size={20} /> {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Content Area */}
+      {/* Main View Area */}
       <div className="flex-1 flex overflow-hidden">
         {activeTab === 'coding' ? (
           <>
-            {/* Transcript Area */}
-            <div className="flex-1 overflow-y-auto p-8 relative" ref={transcriptRef}>
-              <div className="max-w-3xl mx-auto space-y-8">
+            <div className="flex-1 overflow-y-auto p-12 bg-white scroll-smooth" ref={transcriptRef}>
+              <div className="max-w-3xl mx-auto space-y-12">
+                <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100 flex items-start gap-4 mb-8">
+                  <Info className="text-blue-500 mt-1 shrink-0" size={20} />
+                  <p className="text-sm text-blue-700 leading-relaxed">
+                    <strong>Tip:</strong> Selecting text will automatically jump the audio player to that segment's timestamp. Use the right sidebar or the selection menu to define thematic codes.
+                  </p>
+                </div>
+
                 {session.analysis?.transcript.map((segment, idx) => (
-                  <div key={idx} className="group relative">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${segment.speaker === 'AI' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'}`}>
-                        {segment.speaker}
-                      </span>
-                      <span className="text-xs text-slate-400 font-mono">00:{idx * 15}</span>
+                  <div 
+                    key={idx} 
+                    className={`group relative p-4 rounded-xl transition-colors hover:bg-slate-50 cursor-pointer ${Math.abs(currentTime - (segment.startTime || 0)) < 5 ? 'bg-blue-50/30' : ''}`}
+                    onClick={() => {
+                      if (segment.startTime !== undefined && audioRef.current) {
+                        audioRef.current.currentTime = segment.startTime;
+                        setCurrentTime(segment.startTime);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-widest ${segment.speaker === 'AI' ? 'bg-[#0047AB] text-white shadow-sm' : 'bg-slate-800 text-white shadow-sm'}`}>
+                          {segment.speaker}
+                        </span>
+                        <div className="flex items-center gap-1.5 text-slate-400 font-mono text-xs">
+                          <Clock size={12} /> {formatTime(segment.startTime || idx * 10)}
+                        </div>
+                      </div>
                     </div>
                     <p 
                       onMouseUp={() => handleTextSelection(idx)}
-                      className="text-lg leading-relaxed text-slate-800 font-light select-text relative"
+                      className="text-xl leading-relaxed text-slate-800 font-light select-text"
                     >
                       {segment.text}
                     </p>
                     
-                    {/* Render Annotations for this segment */}
-                    <div className="flex flex-wrap gap-2 mt-2">
+                    <div className="flex flex-wrap gap-2 mt-4">
                       {session.annotations
                         .filter(a => a.segmentIndex === idx)
                         .map(a => {
@@ -186,14 +276,14 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ session, onUpdate }) => {
                           return (
                             <span 
                               key={a.id}
-                              className="px-2 py-0.5 rounded-full text-[10px] font-semibold text-white flex items-center gap-1 group/annot"
+                              className="px-3 py-1 rounded-lg text-[11px] font-bold text-white flex items-center gap-2 shadow-sm animate-in zoom-in-95"
                               style={{ backgroundColor: code?.color || '#94a3b8' }}
                             >
-                              {code?.name}: "{a.text}"
-                              <X size={10} className="cursor-pointer hover:scale-125" onClick={() => onUpdate({
-                                ...session,
-                                annotations: session.annotations.filter(an => an.id !== a.id)
-                              })} />
+                              {code?.name}
+                              <X size={12} className="cursor-pointer hover:scale-125" onClick={(e) => {
+                                e.stopPropagation();
+                                onUpdate({ ...session, annotations: session.annotations.filter(an => an.id !== a.id) });
+                              }} />
                             </span>
                           );
                         })
@@ -203,32 +293,50 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ session, onUpdate }) => {
                 ))}
               </div>
 
-              {/* Floating Hover Menu for Coding */}
+              {/* Selection Menu */}
               {selection && (
                 <div 
-                  className="fixed z-50 bg-white rounded-xl shadow-2xl border border-slate-200 p-2 flex flex-col gap-1 min-w-[160px] animate-in zoom-in-95 duration-100"
-                  style={{ 
-                    top: selection.rect ? selection.rect.top - 80 : 0, 
-                    left: selection.rect ? selection.rect.left : 0 
-                  }}
+                  className="fixed z-[100] bg-slate-900 text-white rounded-xl shadow-2xl p-3 flex flex-col gap-2 min-w-[240px] border border-white/10 animate-in zoom-in-95"
+                  style={{ top: selection.rect ? selection.rect.bottom + 10 : 0, left: selection.rect ? selection.rect.left : 0 }}
                 >
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2 py-1">Apply Code</p>
-                  <div className="max-h-48 overflow-y-auto flex flex-col gap-0.5">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 py-1 border-b border-white/5 mb-1">Apply or Create Code</p>
+                  
+                  <div className="max-h-40 overflow-y-auto flex flex-col gap-1 pr-1 custom-scrollbar">
                     {session.codes.map(code => (
                       <button
                         key={code.id}
                         onClick={() => applyCode(code.id)}
-                        className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 rounded-lg transition-colors text-sm font-medium text-slate-700"
+                        className="flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-xs font-bold"
                       >
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: code.color }} />
-                        {code.name}
+                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: code.color }} />
+                        <span className="truncate">{code.name}</span>
                       </button>
                     ))}
+                    {session.codes.length === 0 && <p className="text-[10px] text-slate-500 italic px-3 py-2">No codes yet...</p>}
                   </div>
-                  <div className="h-px bg-slate-100 my-1"></div>
+
+                  <div className="border-t border-white/5 pt-2 mt-1">
+                    <div className="flex gap-1">
+                      <input 
+                        type="text"
+                        value={inlineNewCodeName}
+                        onChange={(e) => setInlineNewCodeName(e.target.value)}
+                        placeholder="New code..."
+                        className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-500"
+                        onKeyDown={(e) => e.key === 'Enter' && addInlineCode()}
+                      />
+                      <button 
+                        onClick={addInlineCode}
+                        className="bg-blue-600 hover:bg-blue-500 p-1.5 rounded-lg transition-colors"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  </div>
+
                   <button 
-                    onClick={() => setSelection(null)}
-                    className="w-full text-center py-1 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                    onClick={() => setSelection(null)} 
+                    className="w-full text-center py-2 text-[10px] text-slate-500 hover:text-white transition-colors uppercase font-black tracking-tighter"
                   >
                     Cancel
                   </button>
@@ -236,117 +344,126 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ session, onUpdate }) => {
               )}
             </div>
 
-            {/* Sidebar for Code Management */}
-            <div className="w-80 border-l border-slate-200 p-6 bg-slate-50 overflow-y-auto">
-              <div className="mb-8">
-                <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-                  <CodeIcon size={18} className="text-[#0047AB]" /> Thematic Codes
-                </h3>
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    value={newCodeName}
-                    onChange={(e) => setNewCodeName(e.target.value)}
-                    placeholder="New code..."
-                    className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0047AB] outline-none"
-                    onKeyDown={(e) => e.key === 'Enter' && addCode()}
-                  />
-                  <Button size="sm" onClick={addCode} className="px-3">+</Button>
-                </div>
+            <aside className="w-80 border-l border-slate-200 p-8 bg-slate-50/50 overflow-y-auto">
+              <h3 className="font-black text-slate-900 mb-6 flex items-center gap-2 uppercase text-xs tracking-widest">
+                <CodeIcon size={18} className="text-[#0047AB]" /> Thematic Taxonomy
+              </h3>
+              <div className="flex gap-2 mb-8">
+                <input 
+                  type="text" 
+                  value={newCodeName}
+                  onChange={(e) => setNewCodeName(e.target.value)}
+                  placeholder="Create new code..."
+                  className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#0047AB] outline-none shadow-sm"
+                  onKeyDown={(e) => e.key === 'Enter' && addCode()}
+                />
+                <Button onClick={addCode} className="px-4 shadow-md">+</Button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {session.codes.length === 0 ? (
-                  <div className="text-center py-12 px-4 border-2 border-dashed border-slate-200 rounded-xl">
-                    <CodeIcon size={32} className="mx-auto text-slate-300 mb-3" />
-                    <p className="text-sm text-slate-400">No thematic codes defined yet. Add one to start analysis.</p>
+                  <div className="text-center py-16 px-6 border-2 border-dashed border-slate-200 rounded-2xl bg-white/50">
+                    <CodeIcon size={40} className="mx-auto text-slate-200 mb-4" />
+                    <p className="text-sm text-slate-400 font-medium">No codes defined. Highlight transcript text to begin thematic grouping.</p>
                   </div>
                 ) : (
                   session.codes.map(code => (
-                    <div key={code.id} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between group">
+                    <div key={code.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between group hover:border-[#0047AB]/50 transition-all">
                       <div className="flex items-center gap-3">
-                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: code.color }} />
-                        <span className="text-sm font-semibold text-slate-700">{code.name}</span>
+                        <div className="w-4 h-4 rounded-full shadow-inner" style={{ backgroundColor: code.color }} />
+                        <span className="text-sm font-bold text-slate-700">{code.name}</span>
                       </div>
-                      <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                      <span className="bg-slate-100 text-slate-500 text-[10px] px-2.5 py-1 rounded-full font-black">
                         {session.annotations.filter(a => a.codeId === code.id).length}
                       </span>
                     </div>
                   ))
                 )}
               </div>
-
-              <div className="mt-8 bg-blue-50 rounded-xl p-4 border border-blue-100">
-                <h4 className="text-xs font-bold text-blue-800 uppercase tracking-widest flex items-center gap-2 mb-2">
-                  <Info size={14} /> Coding Guide
-                </h4>
-                <p className="text-xs text-blue-600 leading-relaxed">
-                  Highlight text in the transcript to assign a thematic code. These labels help formalize the invariant structures of your participant's experience.
-                </p>
-              </div>
-            </div>
+            </aside>
           </>
         ) : (
-          /* Report View */
-          <div className="flex-1 overflow-y-auto p-12 bg-slate-50">
-            <div className="max-w-4xl mx-auto space-y-12">
-              {/* Summary Section */}
-              <section className="bg-white p-10 rounded-3xl shadow-sm border border-slate-200">
-                <h3 className="text-3xl font-bold text-slate-900 mb-6 border-b border-slate-100 pb-4">Executive Summary</h3>
-                <p className="text-xl text-slate-700 leading-relaxed font-light italic">
+          <div className="flex-1 overflow-y-auto p-12 bg-slate-50/30">
+            <div className="max-w-4xl mx-auto space-y-16">
+              {/* Executive Summary - Improved Top Section */}
+              <section className="bg-white p-12 rounded-[3rem] shadow-2xl shadow-blue-900/5 border border-slate-200 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full -mr-32 -mt-32 group-hover:scale-110 transition-transform duration-1000" />
+                <h3 className="text-[10px] font-black text-[#0047AB] mb-8 uppercase tracking-[0.4em] flex items-center gap-3">
+                  <Quote size={24} fill="#0047AB" /> AI Executive Synthesis
+                </h3>
+                <p className="text-3xl font-light text-slate-800 leading-tight italic tracking-tight relative z-10">
                   "{session.analysis?.summary}"
                 </p>
+                
+                <div className="mt-16 pt-10 border-t border-slate-100 relative z-10">
+                  <h4 className="text-[10px] font-black text-slate-400 mb-6 uppercase tracking-[0.3em] flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-[#0047AB]" /> Key Structural Takeaways
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {session.analysis?.takeaways.map((t, i) => (
+                      <div key={i} className="flex gap-4 p-5 bg-slate-50 border border-slate-100 rounded-2xl hover:bg-blue-50 hover:border-blue-100 transition-all">
+                        <div className="w-6 h-6 rounded-full bg-[#0047AB] text-white flex items-center justify-center text-[10px] font-black shrink-0">
+                          {i + 1}
+                        </div>
+                        <p className="text-sm font-semibold text-slate-600 leading-relaxed">{t}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </section>
 
-              {/* Grid of Results */}
-              <div className="grid md:grid-cols-2 gap-8">
-                <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
-                  <h4 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-                    <History size={20} className="text-[#0047AB]" /> Diachronic Dimension
+              {/* Structural Dimensions */}
+              <div className="grid md:grid-cols-2 gap-12">
+                <div className="space-y-8">
+                  <h4 className="text-sm font-black text-slate-900 flex items-center gap-3 uppercase tracking-widest border-b border-slate-200 pb-4">
+                    <History size={20} className="text-[#0047AB]" /> Diachronic Structures
                   </h4>
-                  <div className="space-y-6">
+                  <div className="space-y-10">
                     {session.analysis?.diachronicStructure.map((phase, i) => (
-                      <div key={i} className="flex gap-4">
+                      <div key={i} className="flex gap-6 relative">
                         <div className="flex flex-col items-center">
-                          <div className="w-8 h-8 rounded-full bg-blue-100 text-[#0047AB] flex items-center justify-center text-xs font-bold shrink-0">
+                          <div className="w-10 h-10 rounded-2xl bg-[#0047AB] text-white flex items-center justify-center text-sm font-black shrink-0 shadow-lg shadow-blue-500/30">
                             {i + 1}
                           </div>
                           {i < session.analysis!.diachronicStructure.length - 1 && (
-                            <div className="w-0.5 h-full bg-slate-100 mt-2" />
+                            <div className="w-0.5 h-full bg-slate-200 my-2" />
                           )}
                         </div>
-                        <div>
-                          <p className="font-bold text-slate-800">{phase.phaseName}</p>
-                          <p className="text-sm text-slate-500 leading-relaxed">{phase.description}</p>
+                        <div className="pt-1">
+                          <p className="text-lg font-bold text-slate-900 mb-2">{phase.phaseName}</p>
+                          <p className="text-sm text-slate-500 leading-relaxed font-medium">{phase.description}</p>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
-                  <h4 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-                    <CodeIcon size={20} className="text-[#0047AB]" /> Synchronic Dimension
+                <div className="space-y-8">
+                  <h4 className="text-sm font-black text-slate-900 flex items-center gap-3 uppercase tracking-widest border-b border-slate-200 pb-4">
+                    <CodeIcon size={20} className="text-[#0047AB]" /> Synchronic Qualities
                   </h4>
-                  <div className="space-y-4">
+                  <div className="grid gap-4">
                     {session.analysis?.synchronicStructure.map((struct, i) => (
-                      <div key={i} className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                        <p className="text-xs font-bold text-[#0047AB] uppercase tracking-widest mb-1">{struct.category}</p>
-                        <p className="text-sm text-slate-700">{struct.details}</p>
+                      <div key={i} className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-[#0047AB]/30 transition-all">
+                        <p className="text-[10px] font-black text-[#0047AB] uppercase tracking-[0.2em] mb-2">{struct.category}</p>
+                        <p className="text-sm text-slate-700 font-medium leading-relaxed">{struct.details}</p>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
 
-              {/* Dynamic Modality Tags */}
-              <div className="flex flex-wrap gap-3 pt-6">
-                {session.analysis?.modalities.map((m, i) => (
-                  <span key={i} className="px-4 py-2 bg-white rounded-full border border-slate-200 text-sm font-semibold text-slate-600 shadow-sm flex items-center gap-2">
-                    <ChevronRight size={14} className="text-[#0047AB]" />
-                    {m}
-                  </span>
-                ))}
+              {/* Dynamic Modality Context */}
+              <div className="pt-10 border-t border-slate-200">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Experience Modalities Identified</p>
+                <div className="flex flex-wrap gap-4">
+                  {session.analysis?.modalities.map((m, i) => (
+                    <span key={i} className="px-6 py-3 bg-white rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 shadow-sm flex items-center gap-3 hover:shadow-md transition-all cursor-default">
+                      <ChevronRight size={16} className="text-[#0047AB]" />
+                      {m}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
