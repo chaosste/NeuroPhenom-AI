@@ -2,15 +2,48 @@
 import React from 'react';
 
 export const COLORS = {
-  primary: '#0047AB', // Cobalt Blue
-  secondary: '#3b82f6',
-  accent: '#f59e0b',
-  bg: '#f8fafc',
-  text: '#1e293b',
+  primary: '#000000', // Stark Black
+  secondary: '#888888',
+  accent: '#000000',
+  bg: '#ffffff',
+  text: '#000000',
+  border: '#e5e5e5',
   codeColors: [
-    '#ef4444', '#f97316', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#f43f5e'
+    '#000000', '#333333', '#666666', '#999999', '#bbbbbb', '#dddddd', '#222222', '#444444', '#555555', '#777777'
   ]
 };
+
+export const Artifact = ({ className = "" }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 100 100" 
+    className={className} 
+    fill="none" 
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+  >
+    <circle cx="50" cy="50" r="48" stroke="currentColor" strokeWidth="0.5" />
+    <circle cx="50" cy="50" r="38" stroke="currentColor" strokeWidth="0.5" strokeDasharray="1 3" />
+    <circle cx="50" cy="50" r="28" stroke="currentColor" strokeWidth="1" />
+    <path d="M50 10V90M10 50H90" stroke="currentColor" strokeWidth="0.2" opacity="0.3" />
+    <rect x="47" y="47" width="6" height="6" fill="currentColor" />
+  </svg>
+);
+
+export const ArchiveVisual = ({ className = "" }: { className?: string }) => (
+  <div className={`flex flex-col gap-1 font-mono text-[8px] uppercase tracking-tighter overflow-hidden select-none ${className}`}>
+    {[...Array(24)].map((_, i) => (
+      <div key={i} className="flex justify-between border-b border-black/5 pb-1 opacity-60">
+        <span>REF_{Math.random().toString(36).substring(7).toUpperCase()}</span>
+        <span>{new Date().toISOString().split('T')[0]}</span>
+        <span className="hidden md:inline">LOC_STORAGE_0{i}</span>
+        <span className="font-bold">STATUS: ARCHIVED</span>
+      </div>
+    ))}
+    <div className="mt-4 p-4 border border-black/20 text-center">
+      <p className="text-[10px] font-black tracking-[0.5em]">SYSTEM ARCHIVE v1.2.4</p>
+    </div>
+  </div>
+);
 
 export const NEURO_PHENOM_SYSTEM_INSTRUCTION = (
   language: 'UK' | 'US',
