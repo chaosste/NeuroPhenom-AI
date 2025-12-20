@@ -16,17 +16,6 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": [
-    "index.tsx",
-    "App.tsx",
-    "types.ts",
-    "constants.tsx",
-    "services/geminiService.ts",
-    "components/AnalysisView.tsx",
-    "components/Button.tsx",
-    "components/LiveInterviewSession.tsx",
-    "components/SettingsMenu.tsx",
-    "components/StandaloneRecorder.tsx"
-  ],
+  "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules", "dist"]
 }
