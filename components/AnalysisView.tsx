@@ -2,7 +2,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AnalysisResult, Code, Annotation, InterviewSession } from '../types';
 import { 
-  Code as CodeIcon, 
   Play, 
   Pause, 
   Download, 
@@ -10,10 +9,7 @@ import {
   History,
   Clock,
   FileText,
-  Plus,
-  ArrowLeft,
   ArrowRight,
-  ChevronDown,
   Layout,
   Layers
 } from 'lucide-react';
@@ -60,14 +56,10 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ session, onUpdate }) => {
   const handleTextSelection = (segmentIndex: number) => {
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed) { setSelection(null); return; }
-    
-    // Check if the selection is within the same node
     const range = sel.getRangeAt(0);
     const container = range.commonAncestorContainer;
-    // Fix: Cast to HTMLElement to safely access classList as range container is a Node
     const parent = (container.nodeType === 3 ? container.parentElement : container) as HTMLElement | null;
     
-    // Only allow selection inside segment text
     if (!parent?.classList?.contains('segment-text-container')) {
       setSelection(null);
       return;
@@ -114,7 +106,7 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ session, onUpdate }) => {
       return (
         <p 
           onMouseUp={() => handleTextSelection(segmentIndex)}
-          className="segment-text-container text-xl leading-relaxed text-black font-medium select-text"
+          className="segment-text-container text-2xl leading-[1.4] text-black font-semibold tracking-tight select-text"
         >
           {text}
         </p>
@@ -125,25 +117,22 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ session, onUpdate }) => {
     const parts = [];
 
     segmentAnnotations.forEach((anno, i) => {
-      // Add text before annotation
       if (anno.startOffset > lastIndex) {
         parts.push(text.substring(lastIndex, anno.startOffset));
       }
-      
       const code = session.codes.find(c => c.id === anno.codeId);
       parts.push(
         <mark 
           key={anno.id}
-          className="bg-black/5 border-b-2 border-black relative group/mark cursor-help px-0.5"
+          className="bg-black/5 border-b-4 border-black relative group/mark cursor-help px-0.5"
           title={code?.name}
         >
           {text.substring(anno.startOffset, anno.endOffset)}
-          <span className="absolute -top-6 left-0 text-[8px] font-black uppercase tracking-tighter bg-black text-white px-1 opacity-0 group-hover/mark:opacity-100 transition-opacity whitespace-nowrap z-10">
+          <span className="absolute -top-8 left-0 text-[9px] font-black uppercase tracking-widest bg-black text-white px-2 py-0.5 opacity-0 group-hover/mark:opacity-100 transition-opacity whitespace-nowrap z-10 rounded">
             {code?.name}
           </span>
         </mark>
       );
-      
       lastIndex = anno.endOffset;
     });
 
@@ -154,7 +143,7 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ session, onUpdate }) => {
     return (
       <div 
         onMouseUp={() => handleTextSelection(segmentIndex)}
-        className="segment-text-container text-xl leading-relaxed text-black font-medium select-text"
+        className="segment-text-container text-2xl leading-[1.4] text-black font-semibold tracking-tight select-text"
       >
         {parts}
       </div>
@@ -165,50 +154,52 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ session, onUpdate }) => {
     <div className="flex flex-col h-full bg-white overflow-hidden font-sans">
       <audio ref={audioRef} src={session.audioUrl} />
 
-      {/* Control Bar */}
-      <div className="flex items-center justify-between px-8 py-4 border-b border-black bg-white z-10">
-        <div className="flex items-center gap-10">
-          <div className="flex items-center gap-5">
+      <div className="flex items-center justify-between px-10 py-5 border-b-2 border-black bg-white z-10 shadow-sm">
+        <div className="flex items-center gap-12">
+          <div className="flex items-center gap-6">
             <button 
               onClick={togglePlayback} 
-              className="w-12 h-12 border-2 border-black flex items-center justify-center hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-1 active:translate-y-1"
+              className="w-14 h-14 bg-black text-white flex items-center justify-center hover:scale-105 transition-all shadow-xl rounded-2xl active:scale-95"
             >
-              {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
+              {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
             </button>
-            <div className="flex flex-col">
-              <div className="flex justify-between items-baseline gap-2">
-                <span className="text-[11px] font-black tracking-widest uppercase">{formatTime(currentTime)}</span>
-                <span className="text-[9px] font-bold text-neutral-300">/ {formatTime(session.duration)}</span>
+            <div className="flex flex-col min-w-[200px]">
+              <div className="flex justify-between items-baseline gap-4 mb-2">
+                <span className="text-xs font-black tracking-widest uppercase">{formatTime(currentTime)}</span>
+                <span className="text-[10px] font-bold text-neutral-300">/ {formatTime(session.duration)}</span>
               </div>
-              <div className="w-48 h-1.5 bg-neutral-100 mt-2 relative overflow-hidden">
-                <div className="absolute top-0 left-0 h-full bg-black transition-all duration-100" style={{ width: `${(currentTime / session.duration) * 100}%` }} />
+              <div className="h-2 bg-neutral-100 rounded-full relative overflow-hidden">
+                <div 
+                  className="absolute top-0 left-0 h-full bg-black transition-all duration-100" 
+                  style={{ width: `${(currentTime / session.duration) * 100}%` }} 
+                />
               </div>
             </div>
           </div>
-          <div className="h-10 w-px bg-neutral-200 hidden lg:block" />
+          <div className="h-10 w-[2px] bg-neutral-100 hidden lg:block" />
           <div className="hidden lg:flex gap-4">
-            <Button variant="outline" size="sm" className="px-4 py-2 border-neutral-200">Metadata</Button>
-            <Button variant="outline" size="sm" className="px-4 py-2 border-neutral-200">Export Raw</Button>
+            <Button variant="outline" size="sm" className="px-5 py-2.5 rounded-full text-[10px] font-black tracking-widest">METADATA</Button>
+            <Button variant="outline" size="sm" className="px-5 py-2.5 rounded-full text-[10px] font-black tracking-widest">EXPORT protocol</Button>
           </div>
         </div>
 
         <div className="flex items-center gap-8">
-          <div className="flex bg-neutral-100 p-1">
+          <div className="flex bg-neutral-100 p-1.5 rounded-2xl">
             <button 
               onClick={() => setActiveTab('coding')}
-              className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'coding' ? 'bg-black text-white' : 'text-neutral-400 hover:text-black'}`}
+              className={`px-8 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all rounded-xl ${activeTab === 'coding' ? 'bg-black text-white shadow-lg' : 'text-neutral-400 hover:text-black'}`}
             >
               Transcript
             </button>
             <button 
               onClick={() => setActiveTab('report')}
-              className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'report' ? 'bg-black text-white' : 'text-neutral-400 hover:text-black'}`}
+              className={`px-8 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all rounded-xl ${activeTab === 'report' ? 'bg-black text-white shadow-lg' : 'text-neutral-400 hover:text-black'}`}
             >
               Synthesis
             </button>
           </div>
-          <button className="p-2 hover:bg-neutral-100 transition-colors">
-            <Download size={20} />
+          <button className="p-3 hover:bg-neutral-100 rounded-xl transition-colors">
+            <Download size={22} />
           </button>
         </div>
       </div>
@@ -216,41 +207,41 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ session, onUpdate }) => {
       <div className="flex-1 flex overflow-hidden">
         {activeTab === 'coding' ? (
           <>
-            <div className="flex-1 overflow-y-auto p-12 md:p-20 lg:p-32 border-r border-black bg-[#fcfcfc] no-scrollbar">
-              <div className="max-w-3xl mx-auto space-y-24">
-                <header className="mb-24 border-b border-black pb-12">
-                  <div className="flex items-center gap-3 mb-6">
-                    <History size={14} className="opacity-30" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-neutral-300">Observation_Repository_Link</span>
+            <div className="flex-1 overflow-y-auto p-12 md:p-24 lg:p-36 border-r-2 border-black bg-[#fafafa] no-scrollbar">
+              <div className="max-w-3xl mx-auto space-y-32">
+                <header className="mb-32 border-b-2 border-black pb-16">
+                  <div className="flex items-center gap-3 mb-8 opacity-20">
+                    <History size={16} />
+                    <span className="text-[10px] font-black uppercase tracking-[0.6em]">Phenomenological_Registry</span>
                   </div>
-                  <h3 className="text-5xl lg:text-6xl font-black uppercase tracking-tighter mb-8 leading-[0.85]">{session.analysis?.summary}</h3>
-                  <div className="flex gap-8">
+                  <h3 className="text-6xl lg:text-8xl font-black uppercase tracking-tighter mb-10 leading-[0.85]">{session.analysis?.summary}</h3>
+                  <div className="flex gap-12">
                     <div className="flex flex-col">
-                      <span className="text-[8px] font-black uppercase text-neutral-400 tracking-widest mb-1">Session_Date</span>
-                      <span className="text-[10px] font-bold uppercase">{new Date(session.date).toLocaleDateString()}</span>
+                      <span className="text-[9px] font-black uppercase text-neutral-400 tracking-widest mb-2">Registry_Date</span>
+                      <span className="text-sm font-bold uppercase">{new Date(session.date).toLocaleDateString()}</span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[8px] font-black uppercase text-neutral-400 tracking-widest mb-1">Time_Signature</span>
-                      <span className="text-[10px] font-bold uppercase">{new Date(session.date).toLocaleTimeString()}</span>
+                      <span className="text-[9px] font-black uppercase text-neutral-400 tracking-widest mb-2">Protocol_ID</span>
+                      <span className="text-sm font-bold uppercase">{session.id.split('-')[0]}</span>
                     </div>
                   </div>
                 </header>
 
-                <div className="space-y-20">
+                <div className="space-y-24">
                   {session.analysis?.transcript.map((segment, idx) => (
                     <div key={idx} className="group relative">
-                      <div className="flex items-center justify-between mb-6 border-b border-black/5 pb-2">
-                        <div className="flex items-center gap-4">
-                          <span className={`text-[10px] font-black uppercase tracking-[0.2em] px-2 py-0.5 ${segment.speaker === 'AI' ? 'bg-black text-white' : 'bg-neutral-100 text-black'}`}>
+                      <div className="flex items-center justify-between mb-8 border-b border-black/5 pb-4">
+                        <div className="flex items-center gap-5">
+                          <span className={`text-[10px] font-black uppercase tracking-widest px-4 py-1 rounded-full ${segment.speaker === 'AI' ? 'bg-black text-white' : 'bg-white border-2 border-black text-black'}`}>
                             {segment.speaker}
                           </span>
-                          <span className="text-[9px] font-mono text-neutral-400 font-bold">[{formatTime(segment.startTime || 0)}]</span>
+                          <span className="text-[10px] font-mono text-neutral-300 font-bold">[{formatTime(segment.startTime || 0)}]</span>
                         </div>
                       </div>
                       
                       {renderSegmentText(segment.text, idx)}
                       
-                      <div className="flex flex-wrap gap-2 mt-6">
+                      <div className="flex flex-wrap gap-2 mt-8">
                         {session.annotations
                           .filter(a => a.segmentIndex === idx)
                           .map(a => {
@@ -258,11 +249,11 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ session, onUpdate }) => {
                             return (
                               <div 
                                 key={a.id}
-                                className="group/anno px-3 py-1 text-[8px] font-black uppercase border border-black/10 flex items-center gap-3 hover:bg-black hover:text-white transition-all cursor-default"
+                                className="group/anno px-4 py-1.5 text-[9px] font-black uppercase border-2 border-black flex items-center gap-4 hover:bg-black hover:text-white transition-all cursor-default rounded-lg"
                               >
                                 <span>{code?.name}: "{a.text}"</span>
                                 <X 
-                                  size={10} 
+                                  size={12} 
                                   className="cursor-pointer opacity-0 group-hover/anno:opacity-100 hover:text-red-400" 
                                   onClick={() => onUpdate({ ...session, annotations: session.annotations.filter(an => an.id !== a.id) })} 
                                 />
@@ -278,67 +269,71 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ session, onUpdate }) => {
 
               {selection && (
                 <div 
-                  className="fixed z-[100] bg-black text-white p-5 flex flex-col gap-4 min-w-[240px] shadow-[12px_12px_0px_0px_rgba(0,0,0,0.2)] animate-in zoom-in-95 duration-200"
-                  style={{ top: selection.rect ? selection.rect.bottom + 12 : 0, left: selection.rect ? selection.rect.left : 0 }}
+                  className="fixed z-[100] bg-black text-white p-6 flex flex-col gap-5 min-w-[280px] shadow-2xl animate-in zoom-in-95 duration-200 rounded-2xl"
+                  style={{ top: selection.rect ? selection.rect.bottom + 16 : 0, left: selection.rect ? selection.rect.left : 0 }}
                 >
-                  <div className="flex justify-between items-center border-b border-white/10 pb-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em]">Apply Taxonomy</p>
-                    <button onClick={() => setSelection(null)}><X size={12} /></button>
+                  <div className="flex justify-between items-center border-b border-white/10 pb-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em]">Codify Fragment</p>
+                    <button onClick={() => setSelection(null)} className="hover:opacity-50"><X size={14} /></button>
                   </div>
-                  <div className="flex flex-col gap-2 max-h-[200px] overflow-y-auto pr-2 no-scrollbar">
+                  <div className="flex flex-col gap-2 max-h-[240px] overflow-y-auto pr-2 no-scrollbar">
                     {session.codes.length === 0 && (
-                      <p className="text-[9px] font-bold text-neutral-500 uppercase italic">No themes defined</p>
+                      <p className="text-[10px] font-bold text-neutral-500 uppercase italic py-4">Define taxonomy first...</p>
                     )}
                     {session.codes.map(code => (
                       <button 
                         key={code.id} 
                         onClick={() => applyCode(code.id)} 
-                        className="text-left text-[11px] font-bold uppercase py-1.5 px-3 hover:bg-white hover:text-black transition-colors flex items-center justify-between group/btn"
+                        className="text-left text-[12px] font-bold uppercase py-2 px-4 hover:bg-white hover:text-black transition-colors flex items-center justify-between group/btn rounded-lg"
                       >
                         {code.name}
-                        <ArrowRight size={10} className="opacity-0 group-hover/btn:opacity-100 transition-opacity" />
+                        <ArrowRight size={12} className="opacity-0 group-hover/btn:opacity-100 transition-transform" />
                       </button>
                     ))}
                   </div>
-                  <div className="pt-2 border-t border-white/10">
-                    <p className="text-[8px] font-mono opacity-40">SELECT_FRAGMENT: {selection.end - selection.start} chars</p>
+                  <div className="pt-3 border-t border-white/10 flex justify-between">
+                    <p className="text-[8px] font-mono opacity-40 uppercase">Fragment_{selection.end - selection.start}c</p>
+                    <p className="text-[8px] font-mono opacity-40 uppercase">Neuro_Map</p>
                   </div>
                 </div>
               )}
             </div>
 
-            <aside className="w-96 p-12 bg-white overflow-y-auto no-scrollbar shadow-[-1px_0px_0px_0px_rgba(0,0,0,1)]">
-              <div className="flex items-center gap-3 mb-10">
-                <Layers size={16} className="text-black" />
-                <h3 className="text-[12px] font-black uppercase tracking-[0.4em]">Thematic_Atlas</h3>
+            <aside className="w-[400px] p-16 bg-white overflow-y-auto no-scrollbar border-l-2 border-black">
+              <div className="flex items-center gap-4 mb-12">
+                <Layers size={20} className="text-black" />
+                <h3 className="text-sm font-black uppercase tracking-[0.4em]">Thematic Atlas</h3>
               </div>
               
-              <div className="mb-16">
-                <div className="flex flex-col gap-3">
+              <div className="mb-20">
+                <div className="flex flex-col gap-4">
                   <input 
                     type="text" 
                     value={newCodeName}
                     onChange={(e) => setNewCodeName(e.target.value)}
-                    placeholder="IDENTIFY NEW THEME..."
-                    className="w-full bg-transparent border-b-2 border-black pb-3 text-[12px] font-bold outline-none uppercase tracking-widest placeholder:text-neutral-300"
+                    placeholder="ENTER NEW THEME..."
+                    className="w-full bg-transparent border-b-2 border-black pb-4 text-sm font-black outline-none uppercase tracking-widest placeholder:text-neutral-200 focus:placeholder:text-transparent transition-all"
                     onKeyDown={(e) => e.key === 'Enter' && addCode()}
                   />
-                  <Button onClick={addCode} className="w-full" size="md">Catalog Theme</Button>
+                  <Button onClick={addCode} className="w-full rounded-xl" size="md">Catalog Theme</Button>
                 </div>
               </div>
 
-              <div className="space-y-10">
+              <div className="space-y-12">
                 {session.codes.map(code => {
                   const count = session.annotations.filter(a => a.codeId === code.id).length;
                   return (
-                    <div key={code.id} className="flex flex-col gap-2 group">
-                      <div className="flex justify-between items-end border-b border-black/10 pb-2 group-hover:border-black transition-colors">
-                        <span className="text-[11px] font-black uppercase tracking-widest">{code.name}</span>
-                        <span className="text-[10px] font-mono font-bold bg-neutral-100 px-2 py-0.5">{count}</span>
+                    <div key={code.id} className="flex flex-col gap-3 group">
+                      <div className="flex justify-between items-end border-b-2 border-black/5 pb-3 group-hover:border-black transition-colors">
+                        <span className="text-xs font-black uppercase tracking-widest">{code.name}</span>
+                        <span className="text-[10px] font-mono font-black bg-neutral-100 px-3 py-1 rounded-full group-hover:bg-black group-hover:text-white transition-colors">{count}</span>
                       </div>
-                      <div className="flex gap-1">
-                        {[...Array(Math.min(count, 10))].map((_, i) => (
-                          <div key={i} className="h-1 flex-1 bg-black" />
+                      <div className="flex gap-1.5 h-1.5 px-0.5">
+                        {[...Array(10)].map((_, i) => (
+                          <div 
+                            key={i} 
+                            className={`h-full flex-1 rounded-full transition-all duration-300 ${i < count ? 'bg-black' : 'bg-neutral-100'}`} 
+                          />
                         ))}
                       </div>
                     </div>
@@ -348,80 +343,80 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ session, onUpdate }) => {
             </aside>
           </>
         ) : (
-          <div className="flex-1 overflow-y-auto p-12 md:p-24 lg:p-40 bg-white no-scrollbar">
-            <div className="max-w-5xl mx-auto space-y-40 pb-40">
-              <section className="animate-in fade-in slide-in-from-bottom-8 duration-700">
-                <div className="flex items-center gap-3 mb-12 opacity-30">
-                  <FileText size={16} />
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.6em]">Structural_Synthesis_v.1.0</h4>
+          <div className="flex-1 overflow-y-auto p-16 md:p-32 lg:p-48 bg-white no-scrollbar">
+            <div className="max-w-5xl mx-auto space-y-48 pb-48">
+              <section className="animate-in fade-in slide-in-from-bottom-12 duration-1000">
+                <div className="flex items-center gap-4 mb-16 opacity-30">
+                  <FileText size={20} />
+                  <h4 className="text-[11px] font-black uppercase tracking-[0.8em]">Structural Synthesis v.1.0</h4>
                 </div>
                 <div className="relative">
-                  <div className="absolute -left-12 top-0 bottom-0 w-2 bg-black" />
-                  <p className="text-6xl lg:text-7xl font-black uppercase tracking-tighter leading-[0.85] italic">
+                  <div className="absolute -left-16 top-0 bottom-0 w-3 bg-black rounded-full" />
+                  <p className="text-7xl lg:text-9xl font-black uppercase tracking-tighter leading-[0.8] italic">
                     "{session.analysis?.summary}"
                   </p>
                 </div>
               </section>
 
-              <div className="grid lg:grid-cols-2 gap-32">
-                <section className="animate-in fade-in slide-in-from-bottom-12 duration-700 delay-100">
-                  <div className="flex items-center gap-3 mb-12">
-                    <Clock size={16} className="text-black" />
-                    <h4 className="text-[12px] font-black uppercase tracking-[0.4em]">Diachronic_Mapping</h4>
+              <div className="grid lg:grid-cols-2 gap-40">
+                <section className="animate-in fade-in slide-in-from-bottom-20 duration-1000 delay-200">
+                  <div className="flex items-center gap-4 mb-16">
+                    <Clock size={20} className="text-black" />
+                    <h4 className="text-sm font-black uppercase tracking-[0.4em]">Diachronic Sequence</h4>
                   </div>
-                  <div className="space-y-20 relative">
-                    <div className="absolute left-[7px] top-4 bottom-4 w-px bg-black opacity-10" />
+                  <div className="space-y-24 relative">
+                    <div className="absolute left-[9px] top-6 bottom-6 w-1 bg-black opacity-5 rounded-full" />
                     {session.analysis?.diachronicStructure.map((phase, i) => (
-                      <div key={i} className="group relative pl-10">
-                        <div className="absolute left-0 top-1.5 w-[15px] h-[15px] bg-white border-2 border-black rounded-full z-10 group-hover:bg-black transition-colors" />
-                        <div className="mb-4">
-                          <span className="text-[9px] font-black mb-1 block opacity-30 tracking-[0.3em]">STAGE_0{i + 1}</span>
-                          <h5 className="text-2xl font-black uppercase tracking-tight group-hover:translate-x-2 transition-transform">{phase.phaseName}</h5>
+                      <div key={i} className="group relative pl-12">
+                        <div className="absolute left-0 top-1.5 w-5 h-5 bg-white border-4 border-black rounded-full z-10 group-hover:bg-black transition-all group-hover:scale-125" />
+                        <div className="mb-6">
+                          <span className="text-[10px] font-black mb-2 block opacity-30 tracking-[0.4em]">FRAGMENT_0{i + 1}</span>
+                          <h5 className="text-3xl font-black uppercase tracking-tight group-hover:translate-x-3 transition-transform">{phase.phaseName}</h5>
                         </div>
-                        <p className="text-sm font-medium leading-relaxed text-neutral-500 max-w-md">{phase.description}</p>
+                        <p className="text-lg font-medium leading-relaxed text-neutral-500 max-w-lg">{phase.description}</p>
                       </div>
                     ))}
                   </div>
                 </section>
 
-                <section className="animate-in fade-in slide-in-from-bottom-12 duration-700 delay-200">
-                  <div className="flex items-center gap-3 mb-12">
-                    <Layout size={16} className="text-black" />
-                    <h4 className="text-[12px] font-black uppercase tracking-[0.4em]">Synchronic_Architecture</h4>
+                <section className="animate-in fade-in slide-in-from-bottom-20 duration-1000 delay-400">
+                  <div className="flex items-center gap-4 mb-16">
+                    <Layout size={20} className="text-black" />
+                    <h4 className="text-sm font-black uppercase tracking-[0.4em]">Synchronic Dynamics</h4>
                   </div>
-                  <div className="grid gap-6">
+                  <div className="grid gap-8">
                     {session.analysis?.synchronicStructure.map((struct, i) => (
-                      <div key={i} className="border-2 border-black/5 p-8 hover:border-black hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,0.05)] transition-all bg-[#fafafa]">
-                        <div className="flex items-center gap-4 mb-6">
-                          <span className="text-[9px] font-black uppercase tracking-[0.3em] bg-black text-white px-3 py-1">{struct.category}</span>
+                      <div key={i} className="border-2 border-black p-10 hover:shadow-[20px_20px_0px_0px_rgba(0,0,0,0.05)] transition-all bg-[#fafafa] rounded-[32px] group">
+                        <div className="flex items-center gap-4 mb-8">
+                          <span className="text-[10px] font-black uppercase tracking-[0.4em] bg-black text-white px-5 py-2 rounded-full group-hover:bg-neutral-800">{struct.category}</span>
                         </div>
-                        <p className="text-lg font-bold uppercase leading-tight tracking-tight">{struct.details}</p>
+                        <p className="text-2xl font-bold uppercase leading-tight tracking-tight">{struct.details}</p>
                       </div>
                     ))}
                   </div>
                 </section>
               </div>
 
-              <section className="pt-24 border-t-4 border-black animate-in fade-in slide-in-from-bottom-12 duration-700 delay-300">
-                <h4 className="text-[12px] font-black uppercase tracking-[0.4em] mb-16">Phenomenological_Component_Registry</h4>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-0 border-l border-t border-black">
+              <section className="pt-32 border-t-4 border-black animate-in fade-in slide-in-from-bottom-20 duration-1000 delay-600">
+                <h4 className="text-sm font-black uppercase tracking-[0.4em] mb-20">Component Registry</h4>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-0 border-2 border-black rounded-[40px] overflow-hidden">
                   {session.analysis?.modalities.map((m, i) => (
-                    <div key={i} className="border-r border-b border-black p-8 flex flex-col gap-6 group hover:bg-black hover:text-white transition-colors">
-                      <div className="w-10 h-10 border border-current flex items-center justify-center font-mono text-xs opacity-40">
+                    <div key={i} className="border-r border-b border-black p-12 flex flex-col gap-8 group hover:bg-black hover:text-white transition-all">
+                      <div className="w-12 h-12 border-2 border-current rounded-xl flex items-center justify-center font-mono text-sm font-black opacity-30 group-hover:opacity-100 transition-opacity">
                         0{i + 1}
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-black uppercase tracking-[0.2em]">{m}</span>
-                        <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all" />
+                      <div className="flex items-center justify-between mt-auto">
+                        <span className="text-sm font-black uppercase tracking-widest">{m}</span>
+                        <ArrowRight size={18} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-3 transition-all" />
                       </div>
                     </div>
                   ))}
                 </div>
               </section>
 
-              <div className="pt-40 flex flex-col items-center opacity-10">
-                <div className="text-[10px] font-black uppercase tracking-[1em] mb-4">End_Of_Report</div>
-                <div className="w-64 h-px bg-black" />
+              <div className="pt-48 flex flex-col items-center opacity-10">
+                <div className="text-[11px] font-black uppercase tracking-[1.5em] mb-6">END OF PROTOCOL</div>
+                <div className="w-96 h-[2px] bg-black rounded-full" />
               </div>
             </div>
           </div>

@@ -21,13 +21,32 @@ export const Artifact = ({ className = "" }: { className?: string }) => (
     xmlns="http://www.w3.org/2000/svg"
     aria-hidden="true"
   >
-    <circle cx="50" cy="50" r="48" fill="currentColor" />
+    <rect width="100" height="100" rx="20" fill="currentColor" />
     <path 
-      d="M50,15C30.7,15,15,30.7,15,50s15.7,35,35,35s35-15.7,35-35c0-2.4-0.3-4.8-0.8-7l-6.6,3.6c0.3,1.1,0.5,2.3,0.5,3.4
-      c0,15.5-12.6,28.1-28.1,28.1S21.9,65.5,21.9,50S34.5,21.9,50,21.9c1.5,0,3,0.1,4.5,0.4l2.4-6.5C54.6,15.3,52.3,15,50,15z M69.7,16.1
-      l-9.9,3.4l6.4,12.6l10-12L69.7,16.1z M71.3,20.9c0.6,0,1.2,0.5,1.2,1.2c0,0.6-0.5,1.2-1.2,1.2s-1.2-0.5-1.2-1.2
-      C70.1,21.4,70.7,20.9,71.3,20.9z" 
-      fill="white" 
+      d="M25 50 Q 40 20 50 50 T 75 50" 
+      stroke="white" 
+      strokeWidth="3" 
+      fill="none" 
+    />
+    <path 
+      d="M25 62 Q 40 32 50 62 T 75 62" 
+      stroke="white" 
+      strokeWidth="2" 
+      fill="none" 
+      opacity="0.5"
+    />
+    <path 
+      d="M25 38 Q 40 8 50 38 T 75 38" 
+      stroke="white" 
+      strokeWidth="2" 
+      fill="none" 
+      opacity="0.5"
+    />
+    <line 
+      x1="50" y1="20" x2="50" y2="80" 
+      stroke="white" 
+      strokeWidth="1.5" 
+      strokeDasharray="4 4" 
     />
   </svg>
 );
