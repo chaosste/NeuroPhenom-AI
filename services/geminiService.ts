@@ -2,15 +2,32 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult, LanguagePreference } from "../types";
 
+// Get API key from localStorage
+const getApiKey = (): string => {
+  const savedSettings = localStorage.getItem('neuro_phenom_settings');
+  if (savedSettings) {
+    try {
+      const settings = JSON.parse(savedSettings);
+      if (settings.apiKey) return settings.apiKey;
+    } catch (e) {}
+  }
+  return '';
+};
+
 export const getWelcomeMessage = async (language: LanguagePreference): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    return "Please add your Gemini API key in Settings to begin.";
+  }
+  
+  const ai = new GoogleGenAI({ apiKey });
   const prompt = `Generate a concise, professional clinical introduction for a neurophenomenology interview. 
   Focus on the 'how' of micro-experience. 
   Use ${language === LanguagePreference.UK ? 'UK' : 'US'} spelling and a sophisticated tone.`;
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.0-flash',
       contents: prompt,
     });
     return response.text || "Interface established. Shall we begin mapping your micro-experience?";
@@ -21,7 +38,12 @@ export const getWelcomeMessage = async (language: LanguagePreference): Promise<s
 };
 
 export const analyzeInterview = async (transcriptText: string, language: LanguagePreference): Promise<AnalysisResult> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("Please add your Gemini API key in Settings");
+  }
+  
+  const ai = new GoogleGenAI({ apiKey });
   
   const responseSchema = {
     type: Type.OBJECT,
@@ -80,12 +102,11 @@ export const analyzeInterview = async (transcriptText: string, language: Languag
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-2.0-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
         responseSchema,
-        thinkingConfig: { thinkingBudget: 8000 }
       }
     });
 
