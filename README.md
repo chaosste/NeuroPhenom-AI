@@ -1,12 +1,14 @@
 <div align="center">
 
-# NeuroPhenom AI
+# 🧠 NeuroPhenom AI
 
-**Professional Neurophenomenology Platform**
+**High-Fidelity Clinical Interface for Neurophenomenology**
 
-*Mapping the micro-dynamics of subjective experience with AI*
+*Mapping pre-reflective subjective experience through granular microphenomenology*
 
-<!-- Add logo/banner: Images/logo.png -->
+<!-- <img src="Images/banner.png" width="600" alt="NeuroPhenom AI" /> -->
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
 </div>
 
@@ -14,32 +16,37 @@
 
 ## About
 
-NeuroPhenom AI is a professional neurophenomenology platform combining micro-phenomenology interview techniques with Google Gemini AI. It provides a complete environment for conducting, recording, and analyzing first-person accounts of subjective experience — mapping the micro-dynamics that traditional methods often miss.
+High-fidelity clinical interface for mapping pre-reflective subjective experience. The conversational AI is trained in granular microphenomenology interview techniques, on altered states of consciousness in particular. Codify and theme your subject data alongside NeuroPhenom AI's granular LLM engine. Analyse the micro-dynamics of lived moments through diachronic slicing and structural synthesis.
 
 Featuring a stark black-and-white minimalist design, the interface stays out of the way and lets the phenomenological work take centre stage.
 
-## Key Features
+## Features
 
-- **Live Interview Sessions** — AI-guided micro-phenomenology interviews in real time
-- **Standalone Recorder** — Capture audio independently of the interview system
-- **Analysis View** — Review and codify interview data with AI assistance
-- **Configurable Settings** — Language, voice gender, and interview mode preferences
-- **Minimalist Design** — Clean black/white aesthetic focused on the work
-- **Codification System** — Systematic categorization of experiential structures
+- 🎙️ **Live Interview Sessions** — AI-guided microphenomenology interviews in real time
+- 🎤 **Standalone Recorder** — Capture audio independently of the interview system
+- 📊 **Analysis View** — Review and codify interview data with AI assistance
+- 🔬 **Diachronic Slicing** — Temporal decomposition of experiential moments
+- 🧩 **Structural Synthesis** — Map the architecture of subjective states
+- ✅ **Consent Protocols** — Built-in consent management for ethical research practice
+- 💾 **Local Storage** — Interviews saved locally for data sovereignty
+- ⚙️ **Configurable** — Language, voice gender, and interview mode settings
+- 🖤 **Minimalist Design** — Clean black/white aesthetic focused on the work
 
 ## Screenshots
 
-<!-- Add screenshots to an Images/ folder and reference them here -->
-<!-- <img src="Images/screenshot.png" width="600" /> -->
+<!-- Add screenshots to Images/ folder -->
+<!-- <img src="Images/screenshot.png" width="600" alt="NeuroPhenom AI Interface" /> -->
 
 ## Tech Stack
 
-- **Frontend:** React + TypeScript, Vite
-- **AI:** Google Gemini API
-- **Design:** Minimalist black/white UI
-- **Deployment:** Docker / Google Cloud
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React + TypeScript, Vite |
+| AI | Google Gemini API |
+| Design | Minimalist black/white UI |
+| Deployment | Docker / Google Cloud |
 
-## Getting Started
+## Installation
 
 ```bash
 # Clone the repository
@@ -49,16 +56,21 @@ cd NeuroPhenom-AI
 # Install dependencies
 npm install
 
-# Set up environment
-# Requires a Google Gemini API key
+# Configure your Gemini API key
 
 # Run development server
 npm run dev
 ```
 
+## Related Projects
+
+> 💡 **Like NeuroPhenom AI? You'll love [MicroPhenom AI](https://github.com/chaosste/MicroPhenom-AI-1)** — the vanilla edition for granular reports on wider lived experience.
+
+> 𓂀 For psychedelic trip report interviews with theatrical deity-themed voices, see [Anubis](https://github.com/chaosste/Anubis).
+
 ## Disclaimer
 
-NeuroPhenom AI is a research tool for exploring subjective experience. It does not provide medical, psychological, or therapeutic advice.
+NeuroPhenom AI is a research tool for exploring subjective experience. It does not provide medical, psychological, or therapeutic advice. It is not a substitute for professional support.
 
 ---
 
@@ -67,5 +79,7 @@ NeuroPhenom AI is a research tool for exploring subjective experience. It does n
 **Built by [Steve Beale](https://newpsychonaut.com)**
 
 [newpsychonaut.com](https://newpsychonaut.com)
+
+© 2026 Stephen Beale. MIT License.
 
 </div>
