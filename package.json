@@ -22,5 +22,20 @@
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.7.2",
     "vite": "^6.0.0"
-  }
+  },
+  "description": "Clinical neurophenomenology platform for micro-phenomenological interviews with privacy-first design",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chaosste/NeuroPhenom-AI"
+  },
+  "keywords": [
+    "neurophenomenology",
+    "clinical-research",
+    "gemini-api",
+    "microphenomenology",
+    "privacy-first",
+    "react"
+  ],
+  "author": "Stephen Beale",
+  "license": "MIT"
 }

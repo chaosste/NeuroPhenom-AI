@@ -1,0 +1,15 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# TypeScript
+*.ts linguist-language=TypeScript
+*.tsx linguist-language=TypeScript
+
+# Documentation
+*.md linguist-documentation
+*.markdown linguist-documentation
+
+# Exclude from archive
+.gitattributes export-ignore
+.gitignore export-ignore
+.github export-ignore
