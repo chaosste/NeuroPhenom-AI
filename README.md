@@ -6,7 +6,7 @@
 
 *Mapping pre-reflective subjective experience through granular microphenomenology*
 
-<!-- <img src="Images/banner.png" width="600" alt="NeuroPhenom AI" /> -->
+<img src="Images/neurophenom-screenshot.jpg" width="600" alt="NeuroPhenom AI — microphenomenology interview and analysis platform" />
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
