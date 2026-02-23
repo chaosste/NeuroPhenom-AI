@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_WEBAPP_NAME: neurophenom # <-- set to your actual App Service name
-  NODE_VERSION: "20.x" # or "22.x", but keep it consistent
+  AZURE_WEBAPP_NAME: neurophenom
+  NODE_VERSION: "22.x"
 
 permissions:
   contents: read
