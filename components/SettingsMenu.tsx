@@ -1,15 +1,23 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Settings, LanguagePreference, VoiceGender, InterviewMode } from '../types';
-import { MoreVertical, Languages, Volume2, Shield, Settings2, Coffee, Key } from 'lucide-react';
+import { MoreVertical, Languages, Volume2, Shield, Settings2, Coffee, Key, Database, Download, Upload } from 'lucide-react';
 
 interface SettingsMenuProps {
   settings: Settings;
   onUpdate: (settings: Settings) => void;
+  onExportEncrypted: () => void;
+  onImportEncrypted: (file: File) => void;
 }
 
-const SettingsMenu: React.FC<SettingsMenuProps> = ({ settings, onUpdate }) => {
+const SettingsMenu: React.FC<SettingsMenuProps> = ({
+  settings,
+  onUpdate,
+  onExportEncrypted,
+  onImportEncrypted
+}) => {
   const [isOpen, setIsOpen] = useState(false);
+  const importFileRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -91,6 +99,23 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ settings, onUpdate }) => {
             </label>
           </div>
 
+          <div className="px-4 py-2.5 flex items-center gap-3">
+            <Database size={18} className="text-slate-400" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-slate-700">Persist Session Data</p>
+              <p className="text-xs text-slate-500">Stores transcripts locally</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={settings.persistLocalData}
+                onChange={(e) => toggleSetting('persistLocalData', e.target.checked)}
+              />
+              <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+
           <div className="h-px bg-slate-100 my-1"></div>
 
           <div className="px-4 py-2.5">
@@ -114,6 +139,36 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ settings, onUpdate }) => {
               Get your free API key →
             </a>
           </div>
+
+          <div className="h-px bg-slate-100 my-1"></div>
+
+          <button
+            onClick={onExportEncrypted}
+            className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
+          >
+            <Download size={18} className="text-slate-400" />
+            <p className="font-medium">Export encrypted archive</p>
+          </button>
+
+          <button
+            onClick={() => importFileRef.current?.click()}
+            className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
+          >
+            <Upload size={18} className="text-slate-400" />
+            <p className="font-medium">Import encrypted archive</p>
+          </button>
+
+          <input
+            ref={importFileRef}
+            type="file"
+            accept=".json,.txt,.npvault"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onImportEncrypted(file);
+              e.currentTarget.value = '';
+            }}
+          />
 
           <div className="h-px bg-slate-100 my-1"></div>
           

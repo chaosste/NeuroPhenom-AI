@@ -40,22 +40,176 @@ const App: React.FC = () => {
     language: LanguagePreference.UK,
     voiceGender: VoiceGender.FEMALE,
     privacyContract: true,
-    interviewMode: InterviewMode.BEGINNER
+    interviewMode: InterviewMode.BEGINNER,
+    persistLocalData: false
   });
 
-  useEffect(() => {
-    const savedSessions = localStorage.getItem('neuro_phenom_sessions');
-    if (savedSessions) {
-      try { setSessions(JSON.parse(savedSessions)); } catch (e) {}
+  const encodeBase64 = (bytes: Uint8Array) => {
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i += 1) {
+      binary += String.fromCharCode(bytes[i]);
     }
+    return btoa(binary);
+  };
+
+  const decodeBase64 = (value: string) => {
+    const binary = atob(value);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  };
+
+  const deriveArchiveKey = async (passphrase: string, salt: Uint8Array, iterations: number) => {
+    const encoder = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(passphrase),
+      'PBKDF2',
+      false,
+      ['deriveKey']
+    );
+
+    return crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: salt as unknown as BufferSource,
+        iterations,
+        hash: 'SHA-256'
+      },
+      keyMaterial,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
+  };
+
+  const encryptArchive = async (payload: object, passphrase: string) => {
+    const iterations = 250000;
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await deriveArchiveKey(passphrase, salt, iterations);
+    const plaintext = new TextEncoder().encode(JSON.stringify(payload));
+    const ciphertext = new Uint8Array(
+      await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: iv as unknown as BufferSource },
+        key,
+        plaintext
+      )
+    );
+
+    return JSON.stringify({
+      v: 1,
+      alg: 'AES-GCM',
+      kdf: 'PBKDF2-SHA256',
+      iter: iterations,
+      salt: encodeBase64(salt),
+      iv: encodeBase64(iv),
+      data: encodeBase64(ciphertext)
+    });
+  };
+
+  const decryptArchive = async (payloadText: string, passphrase: string) => {
+    const parsed = JSON.parse(payloadText);
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      parsed.v !== 1 ||
+      typeof parsed.iter !== 'number' ||
+      typeof parsed.salt !== 'string' ||
+      typeof parsed.iv !== 'string' ||
+      typeof parsed.data !== 'string'
+    ) {
+      throw new Error('Invalid archive format.');
+    }
+
+    const salt = decodeBase64(parsed.salt);
+    const iv = decodeBase64(parsed.iv);
+    const ciphertext = decodeBase64(parsed.data);
+    const key = await deriveArchiveKey(passphrase, salt, parsed.iter);
+    const plaintext = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: iv as unknown as BufferSource },
+      key,
+      ciphertext as unknown as BufferSource
+    );
+
+    return JSON.parse(new TextDecoder().decode(plaintext));
+  };
+
+  useEffect(() => {
     const savedSettings = localStorage.getItem('neuro_phenom_settings');
     if (savedSettings) {
-      try { setSettings(JSON.parse(savedSettings)); } catch (e) {}
+      try {
+        const parsed = JSON.parse(savedSettings);
+        setSettings(prev => ({ ...prev, ...parsed }));
+        if (parsed?.persistLocalData) {
+          const savedSessions = localStorage.getItem('neuro_phenom_sessions');
+          if (savedSessions) {
+            try { setSessions(JSON.parse(savedSessions)); } catch {}
+          }
+        }
+      } catch {}
     }
   }, []);
 
-  useEffect(() => { localStorage.setItem('neuro_phenom_sessions', JSON.stringify(sessions)); }, [sessions]);
-  useEffect(() => { localStorage.setItem('neuro_phenom_settings', JSON.stringify(settings)); }, [settings]);
+  useEffect(() => {
+    if (settings.persistLocalData) {
+      localStorage.setItem('neuro_phenom_sessions', JSON.stringify(sessions));
+      return;
+    }
+    localStorage.removeItem('neuro_phenom_sessions');
+  }, [sessions, settings.persistLocalData]);
+
+  useEffect(() => {
+    const { apiKey: _omitApiKey, ...safeSettings } = settings;
+    localStorage.setItem('neuro_phenom_settings', JSON.stringify(safeSettings));
+  }, [settings]);
+
+  const handleExportEncryptedArchive = async () => {
+    if (sessions.length === 0) {
+      alert('No sessions available to export.');
+      return;
+    }
+    const passphrase = window.prompt('Set archive passphrase (required to decrypt):');
+    if (!passphrase) return;
+
+    try {
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        sessions
+      };
+      const encrypted = await encryptArchive(payload, passphrase);
+      const blob = new Blob([encrypted], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `neurophenom-archive-${new Date().toISOString().slice(0, 10)}.npvault.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Archive export failed.');
+    }
+  };
+
+  const handleImportEncryptedArchive = async (file: File) => {
+    const passphrase = window.prompt('Enter archive passphrase to import:');
+    if (!passphrase) return;
+
+    try {
+      const payloadText = await file.text();
+      const decrypted = await decryptArchive(payloadText, passphrase);
+      if (!Array.isArray(decrypted?.sessions)) {
+        throw new Error('Invalid archive payload.');
+      }
+      setSessions(decrypted.sessions);
+      setView('home');
+      setActiveSession(null);
+      alert(`Imported ${decrypted.sessions.length} session(s).`);
+    } catch {
+      alert('Archive import failed. Check passphrase and file integrity.');
+    }
+  };
 
   const handleCreateAISession = () => setView('ai-interview');
   const handleStartRecording = () => setView('recorder');
@@ -299,7 +453,12 @@ const App: React.FC = () => {
           <span className="text-2xl font-black tracking-tighter uppercase group-hover:tracking-normal transition-all">NeuroPhenom AI</span>
         </div>
         <div className="flex items-center gap-6">
-          <SettingsMenu settings={settings} onUpdate={setSettings} />
+          <SettingsMenu
+            settings={settings}
+            onUpdate={setSettings}
+            onExportEncrypted={handleExportEncryptedArchive}
+            onImportEncrypted={handleImportEncryptedArchive}
+          />
         </div>
       </header>
 
@@ -317,6 +476,7 @@ const App: React.FC = () => {
           {view === 'home' && renderHome()}
           {view === 'recorder' && (
             <StandaloneRecorder 
+              apiKey={settings.apiKey}
               onComplete={handleRecordComplete} 
               onCancel={() => setView('home')} 
             />
