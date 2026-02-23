@@ -313,8 +313,8 @@ const App: React.FC = () => {
           </div>
         </div>
         <p className="text-xl font-medium max-w-3xl tracking-tight leading-relaxed text-neutral-600">
-          A high-fidelity clinical interface for mapping pre-reflective subjective experience. 
-          Analyze the micro-dynamics of lived moments through diachronic slicing and structural synthesis.
+          A high-fidelity neurophenomenology interface for researcher and participant alike. 
+          Ease into lived experience through guided evocation, then codify and analyze micro-dynamics with diachronic and synchronic precision.
         </p>
       </div>
 

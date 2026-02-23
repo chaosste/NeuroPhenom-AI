@@ -41,6 +41,11 @@ export interface AnalysisResult {
   takeaways: string[];
   modalities: string[];
   phasesCount: number;
+  codebookSuggestions?: {
+    label: string;
+    rationale: string;
+    exemplarQuote: string;
+  }[];
   diachronicStructure: {
     phaseName: string;
     description: string;
