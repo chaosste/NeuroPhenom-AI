@@ -4,7 +4,7 @@
 
 **High-Fidelity Clinical Interface for Neurophenomenology**
 
-*Mapping pre-reflective subjective experience through granular microphenomenology*
+*Mapping pre-reflective subjective experience through granular interview techniques*
 
 <img src="Images/neurophenom-screenshot.jpg" width="600" alt="NeuroPhenom AI — microphenomenology interview and analysis platform" />
 
