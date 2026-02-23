@@ -2,13 +2,17 @@ const express = require("express");
 const path = require("path");
 
 const app = express();
-const dist = path.join(__dirname, "dist");
+const distPath = path.join(__dirname, "dist");
 
-app.use(express.static(dist));
+// Serve static assets
+app.use(express.static(distPath));
 
+// SPA fallback (client-side routing)
 app.get("*", (req, res) => {
-  res.sendFile(path.join(dist, "index.html"));
+  res.sendFile(path.join(distPath, "index.html"));
 });
 
 const port = process.env.PORT || 8080;
-app.listen(port, "0.0.0.0", () => console.log(`Listening on ${port}`));
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Serving dist on port ${port}`);
+});
