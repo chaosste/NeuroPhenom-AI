@@ -22,17 +22,23 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: Install
+      - name: Install (dev + prod)
         run: npm ci
 
       - name: Build
         run: npm run build
 
-      # Create a minimal deployment bundle
+      # IMPORTANT: create production-only node_modules for Azure runtime
+      - name: Install production dependencies only
+        run: |
+          rm -rf node_modules
+          npm ci --omit=dev
+
       - name: Prepare deploy folder
         run: |
           mkdir -p deploy
           cp -R dist deploy/dist
+          cp -R node_modules deploy/node_modules
           cp server.js deploy/server.js
           cp package.json deploy/package.json
           cp package-lock.json deploy/package-lock.json
@@ -42,7 +48,7 @@ jobs:
         with:
           name: node-app
           path: deploy
-
+          
   deploy:
     permissions:
       contents: none
