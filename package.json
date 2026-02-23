@@ -39,5 +39,9 @@
     "react"
   ],
   "author": "Stephen Beale",
-  "license": "MIT"
+  "license": "MIT",
+  "volta": {
+    "node": "22.22.0",
+    "npm": "10.9.4"
+  }
 }
