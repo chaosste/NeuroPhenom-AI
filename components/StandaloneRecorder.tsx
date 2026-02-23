@@ -5,11 +5,12 @@ import { Mic, Square, Loader2, Activity, Volume2, Wifi, AlertTriangle } from 'lu
 import Button from './Button';
 
 interface StandaloneRecorderProps {
+  apiKey?: string;
   onComplete: (transcriptText: string, audioBlob: Blob) => void;
   onCancel: () => void;
 }
 
-const StandaloneRecorder: React.FC<StandaloneRecorderProps> = ({ onComplete, onCancel }) => {
+const StandaloneRecorder: React.FC<StandaloneRecorderProps> = ({ apiKey, onComplete, onCancel }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -49,6 +50,12 @@ const StandaloneRecorder: React.FC<StandaloneRecorderProps> = ({ onComplete, onC
   };
 
   const startRecording = async () => {
+    const normalizedApiKey = apiKey?.trim() || '';
+    if (!normalizedApiKey) {
+      setError("MISSING_GEMINI_KEY");
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
@@ -59,7 +66,7 @@ const StandaloneRecorder: React.FC<StandaloneRecorderProps> = ({ onComplete, onC
       };
       mediaRecorderRef.current.start(1000);
 
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: normalizedApiKey });
       const inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       
       const sessionPromise = ai.live.connect({

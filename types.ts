@@ -19,6 +19,7 @@ export interface Settings {
   voiceGender: VoiceGender;
   privacyContract: boolean;
   interviewMode: InterviewMode;
+  persistLocalData: boolean;
   apiKey?: string;
 }
 
