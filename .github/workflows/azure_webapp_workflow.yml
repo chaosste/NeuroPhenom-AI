@@ -5,9 +5,19 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to deploy (branch, tag, or commit SHA)"
+        required: false
+        default: "main"
+      healthcheck_url:
+        description: "Optional full health check URL override"
+        required: false
+        default: ""
 
 permissions:
   contents: read
+  id-token: write
 
 env:
   AZURE_WEBAPP_NAME: neurophenom
@@ -20,6 +30,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -33,6 +45,7 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Create a production-only node_modules for runtime
       - name: Install production dependencies only
         run: |
           rm -rf node_modules
@@ -59,15 +72,76 @@ jobs:
     needs: build
 
     steps:
+      - name: Preflight secret checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${AZURE_WEBAPP_NAME:-}" ]]; then
+            echo "AZURE_WEBAPP_NAME is empty."
+            exit 1
+          fi
+
+          if [[ -n "${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}" ]]; then
+            echo "Deploy mode: publish-profile"
+            exit 0
+          fi
+
+          echo "Deploy mode: OIDC"
+          [[ -n "${{ secrets.AZURE_CLIENT_ID }}" ]] || { echo "Missing AZURE_CLIENT_ID"; exit 1; }
+          [[ -n "${{ secrets.AZURE_TENANT_ID }}" ]] || { echo "Missing AZURE_TENANT_ID"; exit 1; }
+          [[ -n "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ]] || { echo "Missing AZURE_SUBSCRIPTION_ID"; exit 1; }
+
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: node-app
           path: .
 
+      - name: Azure login (OIDC)
+        if: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE == '' }}
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
       - name: Deploy to Azure Web App (Publish Profile)
+        if: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE != '' }}
         uses: azure/webapps-deploy@v2
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: .
+
+      - name: Deploy to Azure Web App (OIDC)
+        if: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE == '' }}
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: .
+
+      - name: Post-deploy health check
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${{ github.event.inputs.healthcheck_url }}" ]]; then
+            HEALTHCHECK_URL="${{ github.event.inputs.healthcheck_url }}"
+          elif [[ -n "${{ vars.AZURE_WEBAPP_HEALTHCHECK_URL }}" ]]; then
+            HEALTHCHECK_URL="${{ vars.AZURE_WEBAPP_HEALTHCHECK_URL }}"
+          else
+            HEALTHCHECK_URL="https://${AZURE_WEBAPP_NAME}.azurewebsites.net/api/health"
+          fi
+
+          echo "Checking ${HEALTHCHECK_URL}"
+          for i in {1..10}; do
+            if curl --silent --show-error --fail --max-time 20 "${HEALTHCHECK_URL}" > /tmp/health_response.json; then
+              echo "Health check passed."
+              cat /tmp/health_response.json
+              exit 0
+            fi
+            echo "Health check attempt ${i}/10 failed; retrying in 15s..."
+            sleep 15
+          done
+
+          echo "Health check failed after retries."
+          exit 1
