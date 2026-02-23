@@ -1,22 +1,26 @@
-name: Deploy authorisation to Azure Web App
+name: Build and deploy Node app to Azure Web App
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
   workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
 
 env:
   AZURE_WEBAPP_NAME: neurophenom
   NODE_VERSION: "22.x"
 
-permissions:
-  contents: read
-
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -24,13 +28,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: Install (dev + prod)
+      - name: Install dependencies
         run: npm ci
 
       - name: Build
         run: npm run build
 
-      # IMPORTANT: create production-only node_modules for Azure runtime
+      # Create a production-only node_modules for runtime
       - name: Install production dependencies only
         run: |
           rm -rf node_modules
@@ -38,6 +42,7 @@ jobs:
 
       - name: Prepare deploy folder
         run: |
+          rm -rf deploy
           mkdir -p deploy
           cp -R dist deploy/dist
           cp -R node_modules deploy/node_modules
@@ -52,13 +57,9 @@ jobs:
           path: deploy
 
   deploy:
-    permissions:
-      contents: none
     runs-on: ubuntu-latest
     needs: build
-    environment:
-      name: Development
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
     steps:
       - name: Download artifact
         uses: actions/download-artifact@v4
@@ -66,15 +67,14 @@ jobs:
           name: node-app
           path: .
 
-      # 1) LOGIN (required for many Azure actions)
-      - name: Azure login
+      - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # 2) DEPLOY
-      - name: Deploy to Azure WebApp
-        id: deploy-to-webapp
+      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
