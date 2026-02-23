@@ -1,3 +1,5 @@
+name: Deploy SPA to Azure Web App
+
 on:
   push:
     branches: ["main"]
