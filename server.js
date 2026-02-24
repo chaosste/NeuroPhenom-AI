@@ -29,6 +29,11 @@ const analysisRateLimiter = rateLimit({
 const foundryEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
 const foundryApiKey = process.env.AZURE_OPENAI_API_KEY;
 const foundryDeployment = process.env.AZURE_OPENAI_DEPLOYMENT;
+const realtimeDeployment =
+  process.env.AZURE_OPENAI_REALTIME_DEPLOYMENT ||
+  process.env.AZURE_OPENAI_DEPLOYMENT_REALTIME ||
+  "";
+const realtimeVoice = process.env.AZURE_OPENAI_REALTIME_VOICE || "verse";
 const foundryApiVersion = process.env.AZURE_OPENAI_API_VERSION || "2024-10-21";
 const canonicalSpecPath = path.join(__dirname, "docs", "knowledge", "core", "NP_CANONICAL_SPEC.md");
 
@@ -122,6 +127,8 @@ const analysisSchema = {
 
 const isFoundryConfigured = () =>
   Boolean(foundryEndpoint && foundryApiKey && foundryDeployment);
+const isRealtimeConfigured = () =>
+  Boolean(foundryEndpoint && foundryApiKey && realtimeDeployment);
 
 const normalizeLanguage = (language) => (language === "UK" ? "UK" : "US");
 
@@ -220,8 +227,84 @@ app.get("/api/health", (_req, res) => {
   res.set("Cache-Control", "no-store, max-age=0");
   res.json({
     ok: true,
-    foundryConfigured: isFoundryConfigured()
+    foundryConfigured: isFoundryConfigured(),
+    realtimeConfigured: isRealtimeConfigured()
   });
+});
+
+app.post("/api/realtime/client-secret", jsonParser, async (req, res) => {
+  if (!isRealtimeConfigured()) {
+    res.status(500).json({
+      error:
+        "Realtime is not configured. Set AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, and AZURE_OPENAI_REALTIME_DEPLOYMENT."
+    });
+    return;
+  }
+
+  const endpoint = foundryEndpoint.replace(/\/+$/, "");
+  const url = `${endpoint}/openai/v1/realtime/client_secrets`;
+  const instructions =
+    typeof req.body?.instructions === "string" ? req.body.instructions : "";
+  const selectedVoice =
+    typeof req.body?.voice === "string" && req.body.voice.trim().length > 0
+      ? req.body.voice.trim()
+      : realtimeVoice;
+
+  const body = {
+    session: {
+      type: "realtime",
+      model: realtimeDeployment,
+      instructions,
+      audio: {
+        output: {
+          voice: selectedVoice
+        }
+      }
+    }
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": foundryApiKey
+      },
+      body: JSON.stringify(body)
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message =
+        data?.error?.message || `Realtime token request failed (${response.status})`;
+      throw new Error(message);
+    }
+
+    const token =
+      data?.value ||
+      data?.token ||
+      data?.client_secret?.value ||
+      data?.clientSecret?.value;
+
+    if (!token) {
+      res.status(502).json({ error: "Realtime token missing from Azure response." });
+      return;
+    }
+
+    res.set("Cache-Control", "no-store, max-age=0");
+    res.json({
+      token,
+      callsUrl: `${endpoint}/openai/v1/realtime/calls?webrtcfilter=on`,
+      deployment: realtimeDeployment
+    });
+  } catch (error) {
+    res.status(502).json({
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to mint Azure Realtime client secret"
+    });
+  }
 });
 
 app.post("/api/welcome", welcomeRateLimiter, jsonParser, async (req, res) => {

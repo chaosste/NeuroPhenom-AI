@@ -4,6 +4,7 @@ import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { Settings, LanguagePreference, VoiceGender, SpeakerSegment, VoiceProvider } from '../types';
 import { NEURO_PHENOM_SYSTEM_INSTRUCTION } from '../constants';
 import { providerLabel, resolveVoiceProvider } from '../services/voiceProviderConfig';
+import { connectAzureRealtimeSession } from '../services/azureRealtimeService';
 import Button from './Button';
 import { Mic, PhoneOff, Terminal, Bot, AudioLines, Activity, Globe } from 'lucide-react';
 
@@ -83,9 +84,108 @@ const LiveInterviewSession: React.FC<LiveInterviewSessionProps> = ({ settings, o
     return { data: encode(new Uint8Array(int16.buffer)), mimeType: 'audio/pcm;rate=16000' };
   };
 
-  const startSession = async () => {
+  const mapAzureVoice = () => {
+    if (settings.voiceGender === VoiceGender.MALE) return "alloy";
+    return "verse";
+  };
+
+  const startAzureRealtimeSession = async () => {
+    setDiagnostics({
+      key: 'checking',
+      mic: 'checking',
+      network: 'checking',
+      session: 'connecting',
+      message: 'Requesting Azure Realtime session...'
+    });
+
+    if (connectTimeoutRef.current) window.clearTimeout(connectTimeoutRef.current);
+    connectTimeoutRef.current = window.setTimeout(() => {
+      setError("Azure Realtime timeout. Check network and Azure app settings.");
+      setDiagnostics((prev) => ({
+        ...prev,
+        network: 'fail',
+        session: 'error',
+        message: 'Azure Realtime connection timed out.'
+      }));
+    }, 15000);
+
     try {
-      const provider = resolveVoiceProvider(settings);
+      const handle = await connectAzureRealtimeSession(
+        NEURO_PHENOM_SYSTEM_INSTRUCTION(
+          settings.language,
+          settings.interviewMode,
+          settings.privacyContract,
+          settings.increasedSensitivityMode
+        ),
+        mapAzureVoice(),
+        {
+          onOpen: () => {
+            if (connectTimeoutRef.current) {
+              window.clearTimeout(connectTimeoutRef.current);
+              connectTimeoutRef.current = null;
+            }
+            setIsActive(true);
+            setDiagnostics({
+              key: 'ok',
+              mic: 'ok',
+              network: 'ok',
+              session: 'live',
+              message: 'Azure Realtime live session connected.'
+            });
+          },
+          onClose: () => {
+            setIsActive(false);
+            setDiagnostics((prev) => prev.session === 'error'
+              ? prev
+              : { ...prev, session: 'closed', message: 'Session closed.' });
+          },
+          onError: (message) => {
+            const lowered = message.toLowerCase();
+            setError(message);
+            if (lowered.includes('key') || lowered.includes('token') || lowered.includes('realtime is not configured')) {
+              setDiagnostics((prev) => ({ ...prev, key: 'fail', session: 'error', message }));
+            } else if (lowered.includes('microphone') || lowered.includes('permission') || lowered.includes('notallowederror')) {
+              setDiagnostics((prev) => ({ ...prev, mic: 'fail', session: 'error', message }));
+            } else {
+              setDiagnostics((prev) => ({ ...prev, network: 'fail', session: 'error', message }));
+            }
+          },
+          onAiTranscriptDelta: (delta) => {
+            updateIncrementalTranscript('AI', delta);
+          },
+          onAiTurnDone: () => {
+            finalizeTurn();
+          },
+          onUserTurn: (text) => {
+            updateIncrementalTranscript('Interviewee', text);
+            finalizeTurn();
+          }
+        }
+      );
+
+      sessionRef.current = handle;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Azure Realtime session failed.';
+      setError(message);
+      const lowered = message.toLowerCase();
+      if (lowered.includes('configured') || lowered.includes('key') || lowered.includes('token')) {
+        setDiagnostics((prev) => ({ ...prev, key: 'fail', session: 'error', message }));
+      } else if (lowered.includes('microphone') || lowered.includes('permission') || lowered.includes('notallowederror')) {
+        setDiagnostics((prev) => ({ ...prev, mic: 'fail', session: 'error', message }));
+      } else {
+        setDiagnostics((prev) => ({ ...prev, network: 'fail', session: 'error', message }));
+      }
+    }
+  };
+
+  const startSession = async () => {
+    const provider = resolveVoiceProvider(settings);
+    if (provider === VoiceProvider.AZURE_OPENAI_REALTIME) {
+      await startAzureRealtimeSession();
+      return;
+    }
+
+    try {
       if (provider !== VoiceProvider.GEMINI) {
         setError(`Provider scaffold enabled: ${providerLabel(provider)} not wired in this branch yet.`);
         setDiagnostics({
