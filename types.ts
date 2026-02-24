@@ -14,6 +14,12 @@ export enum InterviewMode {
   ADVANCED = 'ADVANCED'
 }
 
+export enum VoiceProvider {
+  GEMINI = 'GEMINI',
+  AZURE_OPENAI_REALTIME = 'AZURE_OPENAI_REALTIME',
+  AZURE_STT_TTS = 'AZURE_STT_TTS'
+}
+
 export interface Settings {
   language: LanguagePreference;
   voiceGender: VoiceGender;
@@ -21,6 +27,7 @@ export interface Settings {
   increasedSensitivityMode: boolean;
   interviewMode: InterviewMode;
   persistLocalData: boolean;
+  voiceProvider?: VoiceProvider;
   apiKey?: string;
 }
 

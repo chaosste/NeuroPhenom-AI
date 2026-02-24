@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
-import { Settings, LanguagePreference, VoiceGender, SpeakerSegment } from '../types';
+import { Settings, LanguagePreference, VoiceGender, SpeakerSegment, VoiceProvider } from '../types';
 import { NEURO_PHENOM_SYSTEM_INSTRUCTION } from '../constants';
+import { providerLabel, resolveVoiceProvider } from '../services/voiceProviderConfig';
 import Button from './Button';
 import { Mic, PhoneOff, Terminal, Bot, AudioLines, Activity, Globe } from 'lucide-react';
 
@@ -84,6 +85,19 @@ const LiveInterviewSession: React.FC<LiveInterviewSessionProps> = ({ settings, o
 
   const startSession = async () => {
     try {
+      const provider = resolveVoiceProvider(settings);
+      if (provider !== VoiceProvider.GEMINI) {
+        setError(`Provider scaffold enabled: ${providerLabel(provider)} not wired in this branch yet.`);
+        setDiagnostics({
+          key: 'unknown',
+          mic: 'unknown',
+          network: 'unknown',
+          session: 'error',
+          message: `${providerLabel(provider)} scaffold is active. Gemini remains the live fallback provider.`
+        });
+        return;
+      }
+
       if (!settings.apiKey) {
         setError("Missing Gemini API Key");
         setDiagnostics({

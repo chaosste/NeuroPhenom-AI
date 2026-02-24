@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Settings, LanguagePreference, VoiceGender, InterviewMode } from '../types';
-import { MoreVertical, Languages, Volume2, Shield, Settings2, Coffee, Key, Database, Download, Upload, HeartHandshake } from 'lucide-react';
+import { Settings, LanguagePreference, VoiceGender, InterviewMode, VoiceProvider } from '../types';
+import { MoreVertical, Languages, Volume2, Shield, Settings2, Coffee, Key, Database, Download, Upload, HeartHandshake, Server } from 'lucide-react';
 
 interface SettingsMenuProps {
   settings: Settings;
@@ -32,6 +32,19 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({
 
   const toggleSetting = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     onUpdate({ ...settings, [key]: value });
+  };
+
+  const providerOrder: VoiceProvider[] = [
+    VoiceProvider.GEMINI,
+    VoiceProvider.AZURE_OPENAI_REALTIME,
+    VoiceProvider.AZURE_STT_TTS
+  ];
+
+  const nextProvider = () => {
+    const current = settings.voiceProvider || VoiceProvider.GEMINI;
+    const idx = providerOrder.indexOf(current);
+    const next = providerOrder[(idx + 1) % providerOrder.length];
+    toggleSetting('voiceProvider', next);
   };
 
   return (
@@ -68,6 +81,17 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({
             <div className="flex-1">
               <p className="font-medium">AI Voice Gender</p>
               <p className="text-xs text-slate-500">{settings.voiceGender}</p>
+            </div>
+          </button>
+
+          <button
+            onClick={nextProvider}
+            className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
+          >
+            <Server size={18} className="text-slate-400" />
+            <div className="flex-1">
+              <p className="font-medium">Voice Provider</p>
+              <p className="text-xs text-slate-500">{settings.voiceProvider || VoiceProvider.GEMINI}</p>
             </div>
           </button>
 

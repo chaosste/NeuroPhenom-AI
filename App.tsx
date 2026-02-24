@@ -6,6 +6,7 @@ import {
   LanguagePreference, 
   VoiceGender, 
   InterviewMode, 
+  VoiceProvider,
   SpeakerSegment 
 } from './types';
 import { 
@@ -42,7 +43,8 @@ const App: React.FC = () => {
     privacyContract: true,
     increasedSensitivityMode: false,
     interviewMode: InterviewMode.BEGINNER,
-    persistLocalData: false
+    persistLocalData: false,
+    voiceProvider: VoiceProvider.GEMINI
   });
 
   const encodeBase64 = (bytes: Uint8Array) => {
