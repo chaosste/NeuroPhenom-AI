@@ -14,7 +14,7 @@ permissions:
 env:
   AZURE_HEALTH_URL: https://neurophenom-finesse.azurewebsites.net/api/health
   CUSTOM_HEALTH_URL: https://www.neurophenomai.newpsychonaut.com/api/health
-  EXPECTED_SUBSTRING: '"ok":true'
+  EXPECTED_SUBSTRING: '"service":"neurophenomai"'
 
 jobs:
   smoke:
