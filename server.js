@@ -226,6 +226,8 @@ const callFoundryChatCompletions = async (messages, useStructuredOutput) => {
 app.get("/api/health", (_req, res) => {
   res.set("Cache-Control", "no-store, max-age=0");
   res.json({
+    status: "ok",
+    service: "neurophenomai",
     ok: true,
     foundryConfigured: isFoundryConfigured(),
     realtimeConfigured: isRealtimeConfigured()
