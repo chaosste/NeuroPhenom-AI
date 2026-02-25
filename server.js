@@ -220,6 +220,7 @@ app.get("/api/health", (_req, res) => {
   res.set("Cache-Control", "no-store, max-age=0");
   res.json({
     ok: true,
+    service: "neurophenomai",
     foundryConfigured: isFoundryConfigured()
   });
 });
