@@ -68,13 +68,6 @@ jobs:
           name: node-app
           path: .
 
-      - name: Validate publish profile secret
-        shell: bash
-        run: |
-          set -euo pipefail
-          [[ -n "${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}" ]] || { echo "Missing AZURE_WEBAPP_PUBLISH_PROFILE"; exit 1; }
-          [[ -n "${AZURE_WEBAPP_NAME:-}" ]] || { echo "AZURE_WEBAPP_NAME is empty"; exit 1; }
-
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
