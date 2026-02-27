@@ -62,6 +62,14 @@ npm install
 npm run dev
 ```
 
+## Workflow Protocol
+
+Use the worktree/branch protocol in:
+- `docs/WORKTREE_WORKFLOW_PROTOCOL.md`
+
+Operational canon:
+- <https://github.com/chaosste/ops-playbooks>
+
 ## Related Projects
 
 > 💡 **Like NeuroPhenom AI? You'll love [MicroPhenom AI](https://github.com/chaosste/MicroPhenom-AI)** — the vanilla edition for granular reports on wider lived experience.
